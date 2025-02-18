@@ -27,7 +27,8 @@ ENV MODEL_NAME="unsloth/meta-llama-3.1-8b-instruct-bnb-4bit" \
     NUM_EPOCHS=3 \
     GRADIENT_ACCUMULATION_STEPS=4 \
     TRAIN_TEST_SPLIT=0.8 \
-    TRAINING_MODE="standard"
+    TRAINING_MODE="grpo" \
+    DATA_PATH="prototype/RLdata_unix.txt"
 
 # Create entrypoint script
 COPY docker-entrypoint.sh .

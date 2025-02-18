@@ -1,0 +1,2 @@
+# Core dependencies for testing
+gradio>=4.0.0  # Optional - UI will fall back to CLI if not installed 
