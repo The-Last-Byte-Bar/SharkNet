@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sharknet:latest
+    container_name: sharknet_trainer
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - ./output:/app/output
+      - ./saved_models:/app/saved_models
+      - ./prototype:/app/prototype
+    environment:
+      - MODEL_NAME=unsloth/meta-llama-3.1-8b-instruct-bnb-4bit
+      - MAX_SEQ_LENGTH=512
+      - LEARNING_RATE=2e-5
+      - BATCH_SIZE=4
+      - NUM_EPOCHS=3
+      - GRADIENT_ACCUMULATION_STEPS=4
+      - TRAIN_TEST_SPLIT=0.8
+      - TRAINING_MODE=standard
+      - CUDA_VISIBLE_DEVICES=0
+      - DATA_PATH=prototype/RLdata_unix.txt
+    restart: "no"
+
+  # Optional service for experiment tracking
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.11.0
+    container_name: sharknet_mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow:/mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://localhost:5000
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri /mlflow
+    restart: unless-stopped 

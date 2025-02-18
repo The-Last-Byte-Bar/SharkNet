@@ -9,14 +9,16 @@ An AI-powered assistant for learning and working with ErgoScript, built using th
 - Explanation of ErgoScript concepts
 - Training on custom ErgoScript examples
 - Optimized inference using 4-bit quantization
+- Containerized training environment with experiment tracking
 
 ## Requirements
 
-- Python 3.8+
+- Docker and Docker Compose
 - CUDA-capable GPU (tested on NVIDIA RTX 3090)
+- NVIDIA Container Toolkit installed
 - 16GB+ RAM recommended
 
-## Installation
+## Quick Start with Docker Compose
 
 1. Clone the repository:
 ```bash
@@ -24,100 +26,79 @@ git clone https://github.com/yourusername/SharkNet.git
 cd SharkNet
 ```
 
-2. Create a virtual environment (recommended):
+2. Start the training environment:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+docker compose up -d
 ```
 
-3. Install dependencies:
+This will start:
+- The main training container
+- MLflow server for experiment tracking (optional)
+
+3. View training progress:
 ```bash
-pip install -r requirements.txt
+docker compose logs -f trainer
 ```
+
+4. Access MLflow UI:
+- Open http://localhost:5000 in your browser
+- View experiment metrics, compare runs, and track model performance
+
+## Configuration
+
+You can configure the training process by editing the environment variables in `docker-compose.yml`:
+
+### Model Configuration
+- `MODEL_NAME`: Base model to use (default: "unsloth/meta-llama-3.1-8b-instruct-bnb-4bit")
+- `MAX_SEQ_LENGTH`: Maximum sequence length (default: 512)
+
+### Training Configuration
+- `TRAINING_MODE`: Training method to use ("standard" or "grpo", default: "standard")
+- `LEARNING_RATE`: Learning rate (default: 2e-5)
+- `BATCH_SIZE`: Batch size (default: 4)
+- `NUM_EPOCHS`: Number of epochs (default: 3)
+- `GRADIENT_ACCUMULATION_STEPS`: Steps for gradient accumulation (default: 4)
+
+### Example with custom configuration:
+```yaml
+# In docker-compose.yml
+services:
+  trainer:
+    environment:
+      - MODEL_NAME=your-model-name
+      - TRAINING_MODE=grpo
+      - BATCH_SIZE=8
+      - NUM_EPOCHS=5
+```
+
+## Output Structure
+
+Each training run creates a unique output directory with the following structure:
+```
+output/
+└── YYYYMMDD_HHMMSS_model-name/
+    ├── test_results/
+    │   └── test_results.json
+    └── metrics.json
+```
+
+The `metrics.json` file contains:
+- Script similarity scores
+- Execution success rates
+- Generation times
+- Other relevant metrics
 
 ## Project Structure
 
 ```
 SharkNet/
 ├── pipeline/           # Training pipeline components
-│   ├── __init__.py
-│   ├── config.py      # Configuration settings
-│   ├── data_loader.py # Data loading and processing
-│   ├── model.py       # Model creation and setup
-│   ├── trainer.py     # Training loop implementation
-│   └── main.py        # Main training script
 ├── prototype/         # Training data and prototypes
-│   └── RLdata_unix.txt # Training data file
-├── inference.py      # Inference script for using the model
-├── requirements.txt  # Project dependencies
+├── docker-compose.yml # Docker Compose configuration
+├── Dockerfile        # Container definition
+├── inference.py      # Inference script
 └── README.md        # This file
 ```
-
-## Training the Model
-
-To train the model on the ErgoScript examples:
-
-```bash
-python -m pipeline.main
-```
-
-The training process will:
-1. Load the base Llama model
-2. Process the training data from `prototype/RLdata_unix.txt`
-3. Fine-tune the model using the instruction format
-4. Save checkpoints in the `saved_models` directory
-
-## Using the Model
-
-To use the trained model for generating ErgoScript code and explanations:
-
-```bash
-python inference.py
-```
-
-This will start an interactive session where you can:
-- Ask questions about ErgoScript
-- Get code examples for different smart contracts
-- Receive explanations about ErgoScript concepts
-- Type 'quit' to exit the session
-
-Example usage:
-```
-What would you like to know about ErgoScript? How do I create a simple payment contract?
-
-Generating response...
-
-Response:
---------------------------------------------------
-Here's how to create a simple payment contract in ErgoScript:
-
-```scala
-{
-    // Define the recipient's public key
-    val recipientPubKey = PK("recipient_pub_key")
-    
-    // Core logic: Only the recipient can spend the funds
-    recipientPubKey
-}
-```
-
-This contract:
-1. Defines the recipient's public key
-2. Ensures that only the recipient can spend the funds
-3. Is a basic example of a payment contract in ErgoScript
-
-You can deploy this contract by wrapping it in a proper Ergo transaction output.
---------------------------------------------------
-```
-
-## Configuration
-
-Key configuration settings in `pipeline/config.py`:
-- `MODEL_NAME`: Base model to use
-- `MAX_SEQ_LENGTH`: Maximum sequence length for inputs
-- `LEARNING_RATE`: Training learning rate
-- `BATCH_SIZE`: Training batch size
-- `NUM_EPOCHS`: Number of training epochs
 
 ## Contributing
 
