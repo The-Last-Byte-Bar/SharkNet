@@ -1,155 +1,139 @@
-# SharkNet
-🦈 SharkNet: A collaborative dataset for LLM training, swimming through the depths of human knowledge. Community-driven Q&amp;A pairs for fine-tuning language models.
+# SharkNet - ErgoScript AI Assistant
 
-# SharkNet-Training
+An AI-powered assistant for learning and working with ErgoScript, built using the Llama model and optimized with Unsloth.
 
-A collaborative repository for collecting high-quality question-answer pairs focused on ErgoScript and Scala-like languages for LLM fine-tuning. Our goal is to create a specialized training dataset for generating ErgoScript code for the Ergo blockchain.
+## Features
 
-## Purpose
+- Interactive Q&A about ErgoScript
+- Smart contract code generation
+- Explanation of ErgoScript concepts
+- Training on custom ErgoScript examples
+- Optimized inference using 4-bit quantization
 
-This repository aims to build a comprehensive dataset of ErgoScript and blockchain-related Q&A pairs to fine-tune Large Language Models. The focus is on smart contract development, blockchain interactions, and Ergo-specific implementations.
+## Requirements
 
-## Example Q&A Format
+- Python 3.8+
+- CUDA-capable GPU (tested on NVIDIA RTX 3090)
+- 16GB+ RAM recommended
 
-Here's an example of the type of Q&A pairs we're looking for:
+## Installation
 
-```json
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/SharkNet.git
+cd SharkNet
+```
+
+2. Create a virtual environment (recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+## Project Structure
+
+```
+SharkNet/
+├── pipeline/           # Training pipeline components
+│   ├── __init__.py
+│   ├── config.py      # Configuration settings
+│   ├── data_loader.py # Data loading and processing
+│   ├── model.py       # Model creation and setup
+│   ├── trainer.py     # Training loop implementation
+│   └── main.py        # Main training script
+├── prototype/         # Training data and prototypes
+│   └── RLdata_unix.txt # Training data file
+├── inference.py      # Inference script for using the model
+├── requirements.txt  # Project dependencies
+└── README.md        # This file
+```
+
+## Training the Model
+
+To train the model on the ErgoScript examples:
+
+```bash
+python -m pipeline.main
+```
+
+The training process will:
+1. Load the base Llama model
+2. Process the training data from `prototype/RLdata_unix.txt`
+3. Fine-tune the model using the instruction format
+4. Save checkpoints in the `saved_models` directory
+
+## Using the Model
+
+To use the trained model for generating ErgoScript code and explanations:
+
+```bash
+python inference.py
+```
+
+This will start an interactive session where you can:
+- Ask questions about ErgoScript
+- Get code examples for different smart contracts
+- Receive explanations about ErgoScript concepts
+- Type 'quit' to exit the session
+
+Example usage:
+```
+What would you like to know about ErgoScript? How do I create a simple payment contract?
+
+Generating response...
+
+Response:
+--------------------------------------------------
+Here's how to create a simple payment contract in ErgoScript:
+
+```scala
 {
-  "conversations": [
-    {
-      "id": "ergo_001",
-      "question": "How do I write an ErgoScript contract that locks funds until a specific height?",
-      "answer": "Here's how to create a height-locked contract in ErgoScript with detailed explanation:\n\n```scala\n{
-    // HEIGHT is a blockchain context variable
-    // Input parameters
-    val deadlineHeight = 100000L // Example height
+    // Define the recipient's public key
+    val recipientPubKey = PK("recipient_pub_key")
     
-    // Core logic
-    HEIGHT >= deadlineHeight
-}\n```\n\nThis contract:\n1. Uses the `HEIGHT` context variable to access current block height\n2. Compares it against a specified deadline\n3. Only allows spending when the current height is >= deadline\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
-      "metadata": {
-        "domain": "smart_contracts",
-        "difficulty": "beginner",
-        "tags": ["ergoscript", "time-lock", "blockchain-height"],
-        "source": "original",
-        "language": "en",
-        "contributor": "shark_coder"
-      }
-    }
-  ]
+    // Core logic: Only the recipient can spend the funds
+    recipientPubKey
 }
 ```
 
-## Another Complex Example
+This contract:
+1. Defines the recipient's public key
+2. Ensures that only the recipient can spend the funds
+3. Is a basic example of a payment contract in ErgoScript
 
-```json
-{
-  "conversations": [
-    {
-      "id": "ergo_002",
-      "question": "How do I create an ErgoScript contract for a simple atomic swap between ERG and a token?",
-      "answer": "Here's an ErgoScript contract implementing an atomic swap with explanation:\n\n```scala\n{
-    // Contract Parameters
-    val ergAmount = 1000000000L // 1 ERG in nanoERG
-    val tokenId = fromBase58(\"token_id_here\")
-    val tokenAmount = 100L
-    
-    // Ensure the output box has the expected ERG amount
-    val properERGAmount = OUTPUTS(0).value >= ergAmount
-    
-    // Verify token transfer
-    val properTokenTransfer = OUTPUTS(0).tokens.exists({ (token: (Coll[Byte], Long)) =>
-        token._1 == tokenId && token._2 >= tokenAmount
-    })
-    
-    // Combined conditions
-    properERGAmount && properTokenTransfer
-}\n```\n\nThis contract:\n1. Defines expected amounts for both ERG and tokens\n2. Checks if output box contains minimum ERG amount\n3. Verifies proper token transfer using token ID\n4. Combines conditions with logical AND\n\nTo use:\n1. Deploy as contract address\n2. Send ERG to contract address\n3. Anyone can fulfill by sending required tokens",
-      "metadata": {
-        "domain": "smart_contracts",
-        "difficulty": "intermediate",
-        "tags": ["ergoscript", "atomic-swap", "tokens"],
-        "source": "original",
-        "language": "en",
-        "contributor": "shark_coder"
-      }
-    }
-  ]
-}
+You can deploy this contract by wrapping it in a proper Ergo transaction output.
+--------------------------------------------------
 ```
 
-## How to Contribute
+## Configuration
 
-### File Structure
-Place your contributions in the `data` directory using the following format:
-```
-data/
-  ├── ergoscript/
-      ├── smart_contracts/
-      ├── dapps/
-      ├── oracles/
-      └── tokens/
-  ├── scala_concepts/
-      ├── basics/
-      ├── advanced/
-      └── patterns/
-```
+Key configuration settings in `pipeline/config.py`:
+- `MODEL_NAME`: Base model to use
+- `MAX_SEQ_LENGTH`: Maximum sequence length for inputs
+- `LEARNING_RATE`: Training learning rate
+- `BATCH_SIZE`: Training batch size
+- `NUM_EPOCHS`: Number of training epochs
 
-### Quality Guidelines for ErgoScript Content
+## Contributing
 
-1. **Correctness**: Code must be syntactically correct and follow ErgoScript best practices
-2. **Completeness**: Include all necessary imports and context variables
-3. **Security**: Highlight security considerations for smart contracts
-4. **Documentation**: Explain key concepts and potential edge cases
-5. **Testing**: Include test scenarios where applicable
-6. **Gas Efficiency**: Note any relevant optimization considerations
-
-### Specific Topic Areas to Cover
-
-1. Basic ErgoScript Concepts
-   - Syntax and data types
-   - Context variables
-   - Box operations
-
-2. Smart Contract Patterns
-   - Time-locked contracts
-   - Multi-signature schemes
-   - Oracle interactions
-
-3. Token Operations
-   - Minting
-   - Burning
-   - Transfer logic
-
-4. DApp Integration
-   - Frontend interaction
-   - Transaction building
-   - Wallet integration
-
-## Tools and Scripts
-
-The `tools` directory contains helpful utilities:
-- `validate_ergo.py`: Validates ErgoScript syntax and common patterns
-- `convert_to_training.py`: Prepares data for LLM training
-- `test_contracts.py`: Basic testing framework for contracts
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Add your ErgoScript examples to `prototype/RLdata_unix.txt`
+4. Commit your changes (`git commit -m 'Add some amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
 
 ## License
+
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Important Considerations
+## Acknowledgments
 
-- **Security**: Review all smart contract code thoroughly
-- **Testing**: Include test cases for different scenarios
-- **Gas Optimization**: Consider execution costs
-- **Documentation**: Explain complex patterns clearly
-
-## Getting Started
-
-1. Clone the repository
-2. Set up the Python environment using `requirements.txt`
-3. Review example ErgoScript Q&A pairs in `data/examples/`
-4. Use the validation tool: `python tools/validate_ergo.py your_file.json`
-
-## Contact
-
-For questions or concerns, please open an issue or contact the maintainers.
+- Built using the Llama model from Meta
+- Optimized with Unsloth for faster training and inference
+- Training data contributed by the Ergo community
