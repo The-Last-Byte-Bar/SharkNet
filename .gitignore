@@ -169,3 +169,45 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.venv
+
+# Model checkpoints and outputs
+saved_models/
+output/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.bin
+
+# Logs
+*.log
+logs/
+tensorboard/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.temp
+
+# Project specific
+unsloth_compiled_cache/
+prototype/*.txt
+!prototype/RLdata_unix.txt  # Keep our training data

@@ -1,7 +1,16 @@
 # requirements.txt
 
+# Development tools
 pytest==7.4.0
 black==24.3.0
 mypy==1.5.1
 pylint==2.17.5
+
+# Core dependencies
+torch>=2.0.0
+transformers>=4.48.2
+unsloth>=2025.2.4
+vllm>=0.7.1
+tqdm>=4.65.0
+pillow>=10.0.0  # Required by unsloth
 
