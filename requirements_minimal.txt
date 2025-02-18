@@ -1,2 +1,6 @@
-# Core dependencies for testing
-gradio>=4.0.0  # Optional - UI will fall back to CLI if not installed 
+# Core dependencies for inference
+torch>=2.0.0
+transformers>=4.48.2
+accelerate>=0.28.0
+gradio>=4.0.0  # Optional - UI will fall back to CLI if not installed
+bitsandbytes>=0.42.0  # For 4-bit quantization 
