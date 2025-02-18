@@ -1,0 +1,76 @@
+{
+  "test_cases": [
+    {
+      "question": "Write a simple ErgoScript contract that implements a basic token with minting and burning capabilities.",
+      "description": "Basic token with mint/burn",
+      "category": "tokens",
+      "complexity": "basic"
+    },
+    {
+      "question": "Create an ErgoScript smart contract for a time-locked vault that can only be accessed after a specific block height.",
+      "description": "Time-locked vault",
+      "category": "vaults",
+      "complexity": "intermediate"
+    },
+    {
+      "question": "Write an ErgoScript contract for a 2-of-3 multi-signature wallet with spending conditions.",
+      "description": "Multi-signature wallet",
+      "category": "wallets",
+      "complexity": "advanced"
+    },
+    {
+      "question": "Implement a simple atomic swap contract in ErgoScript that allows two parties to exchange tokens.",
+      "description": "Atomic swap",
+      "category": "defi",
+      "complexity": "intermediate"
+    },
+    {
+      "question": "Create an NFT minting contract in ErgoScript with royalty payment functionality.",
+      "description": "NFT with royalties",
+      "category": "nft",
+      "complexity": "intermediate"
+    },
+    {
+      "question": "Write an ErgoScript contract for a decentralized auction with minimum bid increments and time extensions.",
+      "description": "Auction contract",
+      "category": "defi",
+      "complexity": "advanced"
+    },
+    {
+      "question": "Implement a staking contract in ErgoScript that rewards users based on their lock-up period.",
+      "description": "Staking rewards",
+      "category": "defi",
+      "complexity": "advanced"
+    },
+    {
+      "question": "Create a simple oracle contract in ErgoScript that allows updating price data with proper verification.",
+      "description": "Oracle implementation",
+      "category": "oracles",
+      "complexity": "intermediate"
+    },
+    {
+      "question": "Write an ErgoScript contract for a basic DEX that implements constant product AMM formula.",
+      "description": "Basic DEX",
+      "category": "defi",
+      "complexity": "advanced"
+    },
+    {
+      "question": "Implement a vesting contract in ErgoScript with linear release schedule and cliff period.",
+      "description": "Token vesting",
+      "category": "tokens",
+      "complexity": "intermediate"
+    },
+    {
+      "question": "Create a simple governance contract in ErgoScript that allows token holders to vote on proposals.",
+      "description": "Basic governance",
+      "category": "governance",
+      "complexity": "advanced"
+    },
+    {
+      "question": "Write an ErgoScript contract for a basic lending protocol with collateralization and liquidation.",
+      "description": "Lending protocol",
+      "category": "defi",
+      "complexity": "advanced"
+    }
+  ]
+} 
