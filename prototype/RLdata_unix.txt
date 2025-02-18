@@ -1,0 +1,121 @@
+{
+  "conversations": [
+    {
+      "id": "ergo_002",
+      "question": "How do I create a multi-signature wallet in ErgoScript?",
+      "answer": "Here's how to create a multi-signature wallet in ErgoScript:\n\n```scala\n{\n    // Define public keys for the signers\n    val pubKey1 = PK(\"public_key_1\")\n    val pubKey2 = PK(\"public_key_2\")\n    val pubKey3 = PK(\"public_key_3\")\n    \n    // Require at least 2 out of 3 signatures to spend\n    atLeast(2, Coll(pubKey1, pubKey2, pubKey3))\n}\n```\n\nThis contract:\n1. Defines three public keys for the signers\n2. Uses the `atLeast` function to require at least 2 signatures\n3. Ensures that funds can only be spent with the required number of signatures\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "multi-signature", "wallet"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_003",
+      "question": "How do I implement a time-locked contract in ErgoScript?",
+      "answer": "Here's how to implement a time-locked contract in ErgoScript:\n\n```scala\n{\n    // Define the time-lock duration in blocks\n    val lockDuration = 1000L // Example: 1000 blocks\n    \n    // Core logic\n    HEIGHT >= (SELF.creationInfo._1 + lockDuration)\n}\n```\n\nThis contract:\n1. Uses `SELF.creationInfo._1` to get the creation height of the box\n2. Adds the `lockDuration` to the creation height\n3. Only allows spending after the specified number of blocks have passed\n\nThis is useful for creating time-locked funds that can only be spent after a certain period.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "time-lock", "blockchain-height"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_004",
+      "question": "How do I create a reversible address in ErgoScript?",
+      "answer": "Here's how to create a reversible address in ErgoScript:\n\n```scala\n{\n    // Define public keys for the hot-wallet and trusted party\n    val hotWalletPubKey = PK(\"hot_wallet_pub_key\")\n    val trustedPartyPubKey = PK(\"trusted_party_pub_key\")\n    \n    // Define the cooling-off period in blocks\n    val coolingPeriod = 1440L // Example: 1440 blocks (approx. 24 hours)\n    \n    // Core logic\n    val isHotWalletSpending = hotWalletPubKey && HEIGHT <= (SELF.creationInfo._1 + coolingPeriod)\n    val isTrustedPartySpending = trustedPartyPubKey && HEIGHT <= (SELF.creationInfo._1 + coolingPeriod)\n    \n    isHotWalletSpending || isTrustedPartySpending\n}\n```\n\nThis contract:\n1. Allows the hot-wallet to spend funds within the cooling-off period\n2. Allows the trusted party to reverse transactions within the same period\n3. Ensures that funds can only be spent by the intended parties during the cooling-off period\n\nThis is useful for creating anti-theft mechanisms in hot-wallets.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "reversible-address", "anti-theft"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_005",
+      "question": "How do I implement a rock-paper-scissors game in ErgoScript?",
+      "answer": "Here's how to implement a rock-paper-scissors game in ErgoScript:\n\n```scala\n{\n    // Define public keys for Alice and Bob\n    val alicePubKey = PK(\"alice_pub_key\")\n    val bobPubKey = PK(\"bob_pub_key\")\n    \n    // Define the choices (0 = rock, 1 = paper, 2 = scissors)\n    val aliceChoice = getVar[Byte](0).get\n    val bobChoice = SELF.R4[Byte].get\n    \n    // Game logic\n    val isDraw = aliceChoice == bobChoice\n    val aliceWins = (aliceChoice - bobChoice) == 1 || (aliceChoice - bobChoice) == -2\n    val bobWins = !isDraw && !aliceWins\n    \n    // Spending conditions\n    (isDraw && (alicePubKey || bobPubKey)) || \n    (aliceWins && alicePubKey) || \n    (bobWins && bobPubKey)\n}\n```\n\nThis contract:\n1. Defines the choices for Alice and Bob\n2. Implements the rock-paper-scissors game logic\n3. Ensures that the winner can spend the funds based on the game outcome\n\nThis is a simple example of a two-party game implemented in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "game", "rock-paper-scissors"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_006",
+      "question": "How do I create a privacy-preserving transaction using ErgoMix?",
+      "answer": "Here's how to create a privacy-preserving transaction using ErgoMix in ErgoScript:\n\n```scala\n{\n    // Define the Half-Mix box script\n    val halfMixScript = {\n        val u = SELF.R4[GroupElement].get\n        val u0 = OUTPUTS(0).R4[GroupElement].get\n        val c0 = OUTPUTS(0).R5[GroupElement].get\n        val d0 = OUTPUTS(0).R6[GroupElement].get\n        val u1 = OUTPUTS(1).R4[GroupElement].get\n        val c1 = OUTPUTS(1).R5[GroupElement].get\n        val d1 = OUTPUTS(1).R6[GroupElement].get\n        \n        val bob = u0 == u && u1 == u && c0 == d1 && c1 == d0 && \n                  (proveDiffuple(g, u, c0, d0) || proveDiffuple(g, u, d0, c0))\n        val alice = proveDlog(u)\n        \n        val fullMixBox = {(b:Box) => blake2b256(b.propositionBytes) == fullMixScriptHash}\n        val fullMixTx = OUTPUTS(0).value == SELF.value && OUTPUTS(1).value == SELF.value && \n                        fullMixBox(OUTPUTS(0)) && fullMixBox(OUTPUTS(1))\n        \n        fullMixTx && (bob || alice)\n    }\n}\n```\n\nThis contract:\n1. Defines the Half-Mix box script for ErgoMix\n2. Ensures that the outputs are indistinguishable for privacy\n3. Allows Alice or Bob to spend the box based on the protocol rules\n\nThis is a basic implementation of the ErgoMix protocol for privacy-preserving transactions.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "privacy", "ergo-mix"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_007",
+      "question": "How do I create a simple payment contract in ErgoScript?",
+      "answer": "Here's how to create a simple payment contract in ErgoScript:\n\n```scala\n{\n    // Define the recipient's public key\n    val recipientPubKey = PK(\"recipient_pub_key\")\n    \n    // Core logic: Only the recipient can spend the funds\n    recipientPubKey\n}\n```\n\nThis contract:\n1. Defines the recipient's public key\n2. Ensures that only the recipient can spend the funds\n3. Is a basic example of a payment contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "payment", "basic"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_008",
+      "question": "How do I create a crowdfunding contract in ErgoScript?",
+      "answer": "Here's how to create a crowdfunding contract in ErgoScript:\n\n```scala\n{\n    // Define the project owner's public key\n    val ownerPubKey = PK(\"owner_pub_key\")\n    \n    // Define the funding goal and deadline\n    val fundingGoal = 1000L // Example: 1000 ERG\n    val deadlineHeight = 150000L // Example: block height 150000\n    \n    // Core logic\n    val isFundingSuccessful = SELF.value >= fundingGoal\n    val isDeadlineReached = HEIGHT >= deadlineHeight\n    \n    // Spending conditions\n    (isFundingSuccessful && ownerPubKey) || \n    (!isFundingSuccessful && isDeadlineReached && SELF.R4[SigmaProp].get)\n}\n```\n\nThis contract:\n1. Allows the project owner to claim funds if the goal is met\n2. Refunds contributors if the goal is not met by the deadline\n3. Uses `SELF.R4` to store the contributor's public key for refunds\n\nThis is a basic crowdfunding contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "crowdfunding", "funding-goal"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_009",
+      "question": "How do I create a vesting contract in ErgoScript?",
+      "answer": "Here's how to create a vesting contract in ErgoScript:\n\n```scala\n{\n    // Define the beneficiary's public key\n    val beneficiaryPubKey = PK(\"beneficiary_pub_key\")\n    \n    // Define the vesting schedule (e.g., 100 blocks)\n    val vestingPeriod = 100L // Example: 100 blocks\n    \n    // Core logic\n    val isVestingComplete = HEIGHT >= (SELF.creationInfo._1 + vestingPeriod)\n    \n    // Spending conditions\n    beneficiaryPubKey && isVestingComplete\n}\n```\n\nThis contract:\n1. Locks funds for a specific period (vesting period)\n2. Allows the beneficiary to claim funds only after the vesting period is over\n3. Uses `SELF.creationInfo._1` to get the creation height of the box\n\nThis is useful for creating vesting schedules for tokens or funds.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "vesting", "time-lock"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_010",
+      "question": "How do I create a lottery contract in ErgoScript?",
+      "answer": "Here's how to create a lottery contract in ErgoScript:\n\n```scala\n{\n    // Define the lottery organizer's public key\n    val organizerPubKey = PK(\"organizer_pub_key\")\n    \n    // Define the participants' public keys\n    val participant1 = PK(\"participant1_pub_key\")\n    val participant2 = PK(\"participant2_pub_key\")\n    val participant3 = PK(\"participant3_pub_key\")\n    \n    // Define the winning condition (e.g., based on a random number)\n    val winningNumber = getVar[Int](0).get // Random number provided by the organizer\n    val participantNumber = SELF.R4[Int].get // Participant's number stored in R4\n    \n    // Core logic\n    val isWinner = participantNumber == winningNumber\n    \n    // Spending conditions\n    (isWinner && participant1) || \n    (isWinner && participant2) || \n    (isWinner && participant3) || \n    (!isWinner && organizerPubKey)\n}\n```\n\nThis contract:\n1. Allows participants to enter the lottery by storing their number in `R4`\n2. Uses a random number to determine the winner\n3. Allows the organizer to reclaim funds if no winner is found\n\nThis is a simple lottery contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "lottery", "random-number"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}

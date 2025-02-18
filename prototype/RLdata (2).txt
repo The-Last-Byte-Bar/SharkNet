@@ -1,0 +1,2542 @@
+{
+  "conversations": [
+    {
+      "id": "ergo_002",
+      "question": "How do I create a multi-signature wallet in ErgoScript?",
+      "answer": "Here's how to create a multi-signature wallet in ErgoScript:\n\n```scala\n{
+    // Define public keys for the signers
+    val pubKey1 = PK(\"public_key_1\")
+    val pubKey2 = PK(\"public_key_2\")
+    val pubKey3 = PK(\"public_key_3\")
+    
+    // Require at least 2 out of 3 signatures to spend
+    atLeast(2, Coll(pubKey1, pubKey2, pubKey3))
+}\n```\n\nThis contract:\n1. Defines three public keys for the signers\n2. Uses the `atLeast` function to require at least 2 signatures\n3. Ensures that funds can only be spent with the required number of signatures\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "multi-signature", "wallet"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_003",
+      "question": "How do I implement a time-locked contract in ErgoScript?",
+      "answer": "Here's how to implement a time-locked contract in ErgoScript:\n\n```scala\n{
+    // Define the time-lock duration in blocks
+    val lockDuration = 1000L // Example: 1000 blocks
+    
+    // Core logic
+    HEIGHT >= (SELF.creationInfo._1 + lockDuration)
+}\n```\n\nThis contract:\n1. Uses `SELF.creationInfo._1` to get the creation height of the box\n2. Adds the `lockDuration` to the creation height\n3. Only allows spending after the specified number of blocks have passed\n\nThis is useful for creating time-locked funds that can only be spent after a certain period.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "time-lock", "blockchain-height"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_004",
+      "question": "How do I create a reversible address in ErgoScript?",
+      "answer": "Here's how to create a reversible address in ErgoScript:\n\n```scala\n{
+    // Define public keys for the hot-wallet and trusted party
+    val hotWalletPubKey = PK(\"hot_wallet_pub_key\")
+    val trustedPartyPubKey = PK(\"trusted_party_pub_key\")
+    
+    // Define the cooling-off period in blocks
+    val coolingPeriod = 1440L // Example: 1440 blocks (approx. 24 hours)
+    
+    // Core logic
+    val isHotWalletSpending = hotWalletPubKey && HEIGHT <= (SELF.creationInfo._1 + coolingPeriod)
+    val isTrustedPartySpending = trustedPartyPubKey && HEIGHT <= (SELF.creationInfo._1 + coolingPeriod)
+    
+    isHotWalletSpending || isTrustedPartySpending
+}\n```\n\nThis contract:\n1. Allows the hot-wallet to spend funds within the cooling-off period\n2. Allows the trusted party to reverse transactions within the same period\n3. Ensures that funds can only be spent by the intended parties during the cooling-off period\n\nThis is useful for creating anti-theft mechanisms in hot-wallets.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "reversible-address", "anti-theft"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_005",
+      "question": "How do I implement a rock-paper-scissors game in ErgoScript?",
+      "answer": "Here's how to implement a rock-paper-scissors game in ErgoScript:\n\n```scala\n{
+    // Define public keys for Alice and Bob
+    val alicePubKey = PK(\"alice_pub_key\")
+    val bobPubKey = PK(\"bob_pub_key\")
+    
+    // Define the choices (0 = rock, 1 = paper, 2 = scissors)
+    val aliceChoice = getVar[Byte](0).get
+    val bobChoice = SELF.R4[Byte].get
+    
+    // Game logic
+    val isDraw = aliceChoice == bobChoice
+    val aliceWins = (aliceChoice - bobChoice) == 1 || (aliceChoice - bobChoice) == -2
+    val bobWins = !isDraw && !aliceWins
+    
+    // Spending conditions
+    (isDraw && (alicePubKey || bobPubKey)) || 
+    (aliceWins && alicePubKey) || 
+    (bobWins && bobPubKey)
+}\n```\n\nThis contract:\n1. Defines the choices for Alice and Bob\n2. Implements the rock-paper-scissors game logic\n3. Ensures that the winner can spend the funds based on the game outcome\n\nThis is a simple example of a two-party game implemented in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "game", "rock-paper-scissors"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_006",
+      "question": "How do I create a privacy-preserving transaction using ErgoMix?",
+      "answer": "Here's how to create a privacy-preserving transaction using ErgoMix in ErgoScript:\n\n```scala\n{
+    // Define the Half-Mix box script
+    val halfMixScript = {
+        val u = SELF.R4[GroupElement].get
+        val u0 = OUTPUTS(0).R4[GroupElement].get
+        val c0 = OUTPUTS(0).R5[GroupElement].get
+        val d0 = OUTPUTS(0).R6[GroupElement].get
+        val u1 = OUTPUTS(1).R4[GroupElement].get
+        val c1 = OUTPUTS(1).R5[GroupElement].get
+        val d1 = OUTPUTS(1).R6[GroupElement].get
+        
+        val bob = u0 == u && u1 == u && c0 == d1 && c1 == d0 && 
+                  (proveDiffuple(g, u, c0, d0) || proveDiffuple(g, u, d0, c0))
+        val alice = proveDlog(u)
+        
+        val fullMixBox = {(b:Box) => blake2b256(b.propositionBytes) == fullMixScriptHash}
+        val fullMixTx = OUTPUTS(0).value == SELF.value && OUTPUTS(1).value == SELF.value && 
+                        fullMixBox(OUTPUTS(0)) && fullMixBox(OUTPUTS(1))
+        
+        fullMixTx && (bob || alice)
+    }
+}\n```\n\nThis contract:\n1. Defines the Half-Mix box script for ErgoMix\n2. Ensures that the outputs are indistinguishable for privacy\n3. Allows Alice or Bob to spend the box based on the protocol rules\n\nThis is a basic implementation of the ErgoMix protocol for privacy-preserving transactions.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "privacy", "ergo-mix"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_007",
+      "question": "How do I create a simple payment contract in ErgoScript?",
+      "answer": "Here's how to create a simple payment contract in ErgoScript:\n\n```scala\n{
+    // Define the recipient's public key
+    val recipientPubKey = PK(\"recipient_pub_key\")
+    
+    // Core logic: Only the recipient can spend the funds
+    recipientPubKey
+}\n```\n\nThis contract:\n1. Defines the recipient's public key\n2. Ensures that only the recipient can spend the funds\n3. Is a basic example of a payment contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "payment", "basic"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_008",
+      "question": "How do I create a crowdfunding contract in ErgoScript?",
+      "answer": "Here's how to create a crowdfunding contract in ErgoScript:\n\n```scala\n{
+    // Define the project owner's public key
+    val ownerPubKey = PK(\"owner_pub_key\")
+    
+    // Define the funding goal and deadline
+    val fundingGoal = 1000L // Example: 1000 ERG
+    val deadlineHeight = 150000L // Example: block height 150000
+    
+    // Core logic
+    val isFundingSuccessful = SELF.value >= fundingGoal
+    val isDeadlineReached = HEIGHT >= deadlineHeight
+    
+    // Spending conditions
+    (isFundingSuccessful && ownerPubKey) || 
+    (!isFundingSuccessful && isDeadlineReached && SELF.R4[SigmaProp].get)
+}\n```\n\nThis contract:\n1. Allows the project owner to claim funds if the goal is met\n2. Refunds contributors if the goal is not met by the deadline\n3. Uses `SELF.R4` to store the contributor's public key for refunds\n\nThis is a basic crowdfunding contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "crowdfunding", "funding-goal"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_009",
+      "question": "How do I create a vesting contract in ErgoScript?",
+      "answer": "Here's how to create a vesting contract in ErgoScript:\n\n```scala\n{
+    // Define the beneficiary's public key
+    val beneficiaryPubKey = PK(\"beneficiary_pub_key\")
+    
+    // Define the vesting schedule (e.g., 100 blocks)
+    val vestingPeriod = 100L // Example: 100 blocks
+    
+    // Core logic
+    val isVestingComplete = HEIGHT >= (SELF.creationInfo._1 + vestingPeriod)
+    
+    // Spending conditions
+    beneficiaryPubKey && isVestingComplete
+}\n```\n\nThis contract:\n1. Locks funds for a specific period (vesting period)\n2. Allows the beneficiary to claim funds only after the vesting period is over\n3. Uses `SELF.creationInfo._1` to get the creation height of the box\n\nThis is useful for creating vesting schedules for tokens or funds.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "vesting", "time-lock"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_010",
+      "question": "How do I create a lottery contract in ErgoScript?",
+      "answer": "Here's how to create a lottery contract in ErgoScript:\n\n```scala\n{
+    // Define the lottery organizer's public key
+    val organizerPubKey = PK(\"organizer_pub_key\")
+    
+    // Define the participants' public keys
+    val participant1 = PK(\"participant1_pub_key\")
+    val participant2 = PK(\"participant2_pub_key\")
+    val participant3 = PK(\"participant3_pub_key\")
+    
+    // Define the winning condition (e.g., based on a random number)
+    val winningNumber = getVar[Int](0).get // Random number provided by the organizer
+    val participantNumber = SELF.R4[Int].get // Participant's number stored in R4
+    
+    // Core logic
+    val isWinner = participantNumber == winningNumber
+    
+    // Spending conditions
+    (isWinner && participant1) || 
+    (isWinner && participant2) || 
+    (isWinner && participant3) || 
+    (!isWinner && organizerPubKey)
+}\n```\n\nThis contract:\n1. Allows participants to enter the lottery by storing their number in `R4`\n2. Uses a random number to determine the winner\n3. Allows the organizer to reclaim funds if no winner is found\n\nThis is a simple lottery contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "lottery", "random-number"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_011",
+      "question": "How do I create a decentralized exchange (DEX) order in ErgoScript?",
+      "answer": "Here's how to create a decentralized exchange (DEX) order in ErgoScript:\n\n```scala\n{
+    // Define the trader's public key
+    val traderPubKey = PK(\"trader_pub_key\")
+    
+    // Define the token to be traded and the price
+    val tokenId = SELF.tokens(0)._1 // Token ID stored in the box
+    val tokenAmount = SELF.tokens(0)._2 // Token amount stored in the box
+    val price = 100L // Example: 100 ERG per token
+    
+    // Core logic
+    val isTradeValid = OUTPUTS.exists { (out: Box) =>
+        out.tokens(0)._1 == tokenId && 
+        out.tokens(0)._2 == tokenAmount && 
+        out.value >= tokenAmount * price
+    }
+    
+    // Spending conditions
+    traderPubKey && isTradeValid
+}\n```\n\nThis contract:\n1. Allows a trader to create a DEX order for a specific token\n2. Ensures that the trade is valid by checking the output boxes\n3. Allows the trader to cancel the order if the conditions are not met\n\nThis is a basic example of a DEX order in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "dex", "trading"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_012",
+      "question": "How do I create a token issuance contract in ErgoScript?",
+      "answer": "Here's how to create a token issuance contract in ErgoScript:\n\n```scala\n{
+    // Define the issuer's public key
+    val issuerPubKey = PK(\"issuer_pub_key\")
+    
+    // Define the token details
+    val tokenName = \"MyToken\"
+    val tokenDescription = \"This is a custom token issued on Ergo\"
+    val tokenAmount = 1000L // Example: 1000 tokens
+    
+    // Core logic
+    val isTokenIssued = OUTPUTS.exists { (out: Box) =>
+        out.tokens(0)._1 == blake2b256(tokenName) && 
+        out.tokens(0)._2 == tokenAmount
+    }
+    
+    // Spending conditions
+    issuerPubKey && isTokenIssued
+}\n```\n\nThis contract:\n1. Allows an issuer to create a new token with a specific name and amount\n2. Ensures that the token is issued correctly by checking the output boxes\n3. Uses `blake2b256` to hash the token name for uniqueness\n\nThis is a basic token issuance contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "token-issuance", "custom-tokens"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_013",
+      "question": "How do I create a simple atomic swap contract in ErgoScript?",
+      "answer": "Here's how to create a simple atomic swap contract in ErgoScript:\n\n```scala\n{
+    // Define the public keys for Alice and Bob
+    val alicePubKey = PK(\"alice_pub_key\")
+    val bobPubKey = PK(\"bob_pub_key\")
+    
+    // Define the hash of the secret preimage
+    val secretHash = blake2b256(\"secret_preimage\".getBytes)
+    
+    // Define the deadline for the swap
+    val deadline = 150000L // Example: block height 150000
+    
+    // Core logic for the atomic swap
+    val aliceSpend = alicePubKey && HEIGHT > deadline
+    val bobSpend = bobPubKey && blake2b256(getVar[Coll[Byte]](1).get) == secretHash
+    
+    aliceSpend || bobSpend
+}\n```\n\nThis contract:\n1. Allows Alice to reclaim her funds after the deadline if Bob doesn't complete the swap\n2. Allows Bob to claim the funds if he provides the correct preimage of the secret hash\n3. Uses `blake2b256` to hash the secret preimage and ensure atomicity\n\nThis is a basic example of an atomic swap contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "atomic-swap", "cross-chain"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_014",
+      "question": "How do I create a time-locked vault in ErgoScript?",
+      "answer": "Here's how to create a time-locked vault in ErgoScript:\n\n```scala\n{
+    // Define the owner's public key
+    val ownerPubKey = PK(\"owner_pub_key\")
+    
+    // Define the time-lock duration in blocks
+    val lockDuration = 1000L // Example: 1000 blocks
+    
+    // Core logic for the time-locked vault
+    val isLocked = HEIGHT < (SELF.creationInfo._1 + lockDuration)
+    val isUnlocked = HEIGHT >= (SELF.creationInfo._1 + lockDuration)
+    
+    (isLocked && ownerPubKey) || (isUnlocked && ownerPubKey)
+}\n```\n\nThis contract:\n1. Locks funds for a specific period (lockDuration)\n2. Allows the owner to reclaim funds only after the lock period has passed\n3. Uses `SELF.creationInfo._1` to get the creation height of the box\n\nThis is useful for creating time-locked vaults for secure fund storage.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "time-lock", "vault"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_015",
+      "question": "How do I create a multi-asset atomic swap in ErgoScript?",
+      "answer": "Here's how to create a multi-asset atomic swap in ErgoScript:\n\n```scala\n{
+    // Define the public keys for Alice and Bob
+    val alicePubKey = PK(\"alice_pub_key\")
+    val bobPubKey = PK(\"bob_pub_key\")
+    
+    // Define the token IDs for the assets being swapped
+    val token1 = \"token1_id\".getBytes
+    val token2 = \"token2_id\".getBytes
+    
+    // Define the amounts of each token
+    val amount1 = 100L // Example: 100 tokens of type 1
+    val amount2 = 200L // Example: 200 tokens of type 2
+    
+    // Core logic for the multi-asset atomic swap
+    val aliceSpend = alicePubKey && OUTPUTS.exists { (out: Box) =>
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == token1 && token._2 >= amount1
+        }
+    }
+    
+    val bobSpend = bobPubKey && OUTPUTS.exists { (out: Box) =>
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == token2 && token._2 >= amount2
+        }
+    }
+    
+    aliceSpend || bobSpend
+}\n```\n\nThis contract:\n1. Allows Alice to claim Bob's tokens if she provides the correct amount of her tokens\n2. Allows Bob to claim Alice's tokens if he provides the correct amount of his tokens\n3. Uses `OUTPUTS.exists` to check for the presence of the required tokens in the outputs\n\nThis is a basic example of a multi-asset atomic swap in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "multi-asset", "atomic-swap"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_016",
+      "question": "How do I create a crowdfunding contract with a refund option in ErgoScript?",
+      "answer": "Here's how to create a crowdfunding contract with a refund option in ErgoScript:\n\n```scala\n{
+    // Define the project owner's public key
+    val ownerPubKey = PK(\"owner_pub_key\")
+    
+    // Define the backer's public key
+    val backerPubKey = PK(\"backer_pub_key\")
+    
+    // Define the funding goal and deadline
+    val fundingGoal = 1000L // Example: 1000 ERG
+    val deadline = 150000L // Example: block height 150000
+    
+    // Core logic for the crowdfunding contract
+    val isFundingSuccessful = SELF.value >= fundingGoal && HEIGHT < deadline
+    val isFundingFailed = SELF.value < fundingGoal && HEIGHT >= deadline
+    
+    val ownerSpend = ownerPubKey && isFundingSuccessful
+    val backerSpend = backerPubKey && isFundingFailed
+    
+    ownerSpend || backerSpend
+}\n```\n\nThis contract:\n1. Allows the project owner to claim funds if the funding goal is met before the deadline\n2. Allows the backer to reclaim funds if the funding goal is not met by the deadline\n3. Uses `SELF.value` to check the total funds raised and `HEIGHT` to enforce the deadline\n\nThis is a basic example of a crowdfunding contract with a refund option in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "crowdfunding", "refund"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_017",
+      "question": "How do I create a time-controlled coin emission contract in ErgoScript?",
+      "answer": "Here's how to create a time-controlled coin emission contract in ErgoScript:\n\n```scala\n{
+    // Define the emission rate and period
+    val emissionRate = 10L // Example: 10 ERG per block
+    val emissionPeriod = 1000L // Example: 1000 blocks
+    
+    // Core logic for the time-controlled coin emission
+    val out = OUTPUTS(0)
+    val coinsToEmit = if (HEIGHT < emissionPeriod) emissionRate else 0L
+    val correctCoinsEmitted = coinsToEmit == (SELF.value - out.value)
+    val sameScript = SELF.propositionBytes == out.propositionBytes
+    val heightIncreased = HEIGHT > SELF.R4[Int].get
+    
+    allOf(Coll(
+        correctCoinsEmitted,
+        sameScript,
+        heightIncreased
+    ))
+}\n```\n\nThis contract:\n1. Emits a fixed amount of coins per block until the emission period is over\n2. Ensures that the emission rate is correctly applied by checking the difference between input and output values\n3. Uses `SELF.R4` to store the creation height and enforce the emission schedule\n\nThis is a basic example of a time-controlled coin emission contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "coin-emission", "time-control"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_018",
+      "question": "How do I create a multi-signature cold wallet in ErgoScript?",
+      "answer": "Here's how to create a multi-signature cold wallet in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the signers
+    val pubKey1 = PK(\"pub_key_1\")
+    val pubKey2 = PK(\"pub_key_2\")
+    val pubKey3 = PK(\"pub_key_3\")
+    
+    // Define the spending threshold (e.g., 2 out of 3 signatures)
+    val threshold = 2
+    
+    // Core logic for the multi-signature cold wallet
+    atLeast(threshold, Coll(pubKey1, pubKey2, pubKey3))
+}\n```\n\nThis contract:\n1. Requires at least 2 out of 3 signatures to spend the funds\n2. Uses the `atLeast` function to enforce the multi-signature requirement\n3. Ensures that funds can only be spent with the required number of signatures\n\nThis is a basic example of a multi-signature cold wallet in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "multi-signature", "cold-wallet"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_019",
+      "question": "How do I create a decentralized oracle contract in ErgoScript?",
+      "answer": "Here's how to create a decentralized oracle contract in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the oracle nodes
+    val oracle1 = PK(\"oracle1_pub_key\")
+    val oracle2 = PK(\"oracle2_pub_key\")
+    val oracle3 = PK(\"oracle3_pub_key\")
+    
+    // Define the threshold for consensus (e.g., 2 out of 3 oracles)
+    val threshold = 2
+    
+    // Define the data feed (e.g., price of an asset)
+    val dataFeed = getVar[Coll[Byte]](1).get
+    
+    // Core logic for the decentralized oracle
+    val isConsensusReached = atLeast(threshold, Coll(
+        oracle1 && blake2b256(dataFeed) == \"expected_hash_1\",
+        oracle2 && blake2b256(dataFeed) == \"expected_hash_2\",
+        oracle3 && blake2b256(dataFeed) == \"expected_hash_3\"
+    ))
+    
+    isConsensusReached
+}\n```\n\nThis contract:\n1. Requires at least 2 out of 3 oracles to agree on the data feed\n2. Uses `blake2b256` to hash the data feed and ensure integrity\n3. Ensures that the data feed is only accepted if consensus is reached\n\nThis is a basic example of a decentralized oracle contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "oracle", "decentralized"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_020",
+      "question": "How do I create a time-locked multisignature wallet in ErgoScript?",
+      "answer": "Here's how to create a time-locked multisignature wallet in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the signers
+    val pubKey1 = PK(\"pub_key_1\")
+    val pubKey2 = PK(\"pub_key_2\")
+    val pubKey3 = PK(\"pub_key_3\")
+    
+    // Define the spending threshold (e.g., 2 out of 3 signatures)
+    val threshold = 2
+    
+    // Define the time-lock duration in blocks
+    val lockDuration = 1000L // Example: 1000 blocks
+    
+    // Core logic for the time-locked multisignature wallet
+    val isLocked = HEIGHT < (SELF.creationInfo._1 + lockDuration)
+    val isUnlocked = HEIGHT >= (SELF.creationInfo._1 + lockDuration)
+    
+    val spendCondition = atLeast(threshold, Coll(pubKey1, pubKey2, pubKey3))
+    
+    (isLocked && spendCondition) || (isUnlocked && spendCondition)
+}\n```\n\nThis contract:\n1. Locks funds for a specific period (lockDuration)\n2. Requires at least 2 out of 3 signatures to spend the funds\n3. Uses `SELF.creationInfo._1` to get the creation height of the box\n\nThis is useful for creating secure multisignature wallets with time-locked funds.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "time-lock", "multisignature"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_021",
+      "question": "How do I create a token vesting contract in ErgoScript?",
+      "answer": "Here's how to create a token vesting contract in ErgoScript:\n\n```scala\n{
+    // Define the beneficiary's public key
+    val beneficiaryPubKey = PK(\"beneficiary_pub_key\")
+    
+    // Define the vesting schedule (e.g., 100 blocks)
+    val vestingPeriod = 100L // Example: 100 blocks
+    
+    // Define the token ID and amount
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 1000L // Example: 1000 tokens
+    
+    // Core logic for the token vesting contract
+    val isVestingComplete = HEIGHT >= (SELF.creationInfo._1 + vestingPeriod)
+    val hasCorrectTokens = OUTPUTS.exists { (out: Box) =>
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+    
+    beneficiaryPubKey && isVestingComplete && hasCorrectTokens
+}\n```\n\nThis contract:\n1. Locks tokens for a specific period (vestingPeriod)\n2. Allows the beneficiary to claim tokens only after the vesting period is over\n3. Uses `OUTPUTS.exists` to ensure the correct tokens are transferred\n\nThis is a basic example of a token vesting contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "token-vesting", "time-lock"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_022",
+      "question": "How do I create a decentralized voting contract in ErgoScript?",
+      "answer": "Here's how to create a decentralized voting contract in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the voters
+    val voter1 = PK(\"voter1_pub_key\")
+    val voter2 = PK(\"voter2_pub_key\")
+    val voter3 = PK(\"voter3_pub_key\")
+    
+    // Define the voting deadline
+    val deadline = 150000L // Example: block height 150000
+    
+    // Define the voting options (e.g., 0 = No, 1 = Yes)
+    val voteOption = getVar[Byte](1).get
+    
+    // Core logic for the decentralized voting contract
+    val isVoteValid = voteOption == 0 || voteOption == 1
+    val isDeadlineReached = HEIGHT >= deadline
+    
+    val voteCondition = atLeast(2, Coll(
+        voter1 && isVoteValid,
+        voter2 && isVoteValid,
+        voter3 && isVoteValid
+    ))
+    
+    voteCondition && !isDeadlineReached
+}\n```\n\nThis contract:\n1. Allows voters to cast their votes (0 or 1)\n2. Requires at least 2 out of 3 voters to participate\n3. Enforces a voting deadline using `HEIGHT`\n\nThis is a basic example of a decentralized voting contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "voting", "decentralized"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_023",
+      "question": "How do I create a self-replicating script in ErgoScript?",
+      "answer": "Here's how to create a self-replicating script in ErgoScript:\n\n```scala\n{
+    // Define the emission rate and period
+    val emissionRate = 10L // Example: 10 ERG per block
+    val emissionPeriod = 1000L // Example: 1000 blocks
+    
+    // Core logic for the self-replicating script
+    val out = OUTPUTS(0)
+    val coinsToEmit = if (HEIGHT < emissionPeriod) emissionRate else 0L
+    val correctCoinsEmitted = coinsToEmit == (SELF.value - out.value)
+    val sameScript = SELF.propositionBytes == out.propositionBytes
+    val heightIncreased = HEIGHT > SELF.R4[Int].get
+    
+    allOf(Coll(
+        correctCoinsEmitted,
+        sameScript,
+        heightIncreased
+    ))
+}\n```\n\nThis contract:\n1. Emits a fixed amount of coins per block until the emission period is over\n2. Ensures that the emission rate is correctly applied by checking the difference between input and output values\n3. Uses `SELF.R4` to store the creation height and enforce the emission schedule\n\nThis is a basic example of a self-replicating script in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "self-replicating", "coin-emission"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_024",
+      "question": "How do I create a privacy-preserving transaction using ring signatures in ErgoScript?",
+      "answer": "Here's how to create a privacy-preserving transaction using ring signatures in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the ring signature participants
+    val pubKey1 = PK(\"pub_key_1\")
+    val pubKey2 = PK(\"pub_key_2\")
+    val pubKey3 = PK(\"pub_key_3\")
+    
+    // Core logic for the ring signature
+    anyOf(Coll(pubKey1, pubKey2, pubKey3))
+}\n```\n\nThis contract:\n1. Allows any one of the participants to spend the funds without revealing which one\n2. Uses the `anyOf` function to create a ring signature\n3. Ensures privacy by hiding the actual spender among the participants\n\nThis is a basic example of a privacy-preserving transaction using ring signatures in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "ring-signature", "privacy"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_025",
+      "question": "How do I create a decentralized identity (DID) verification contract in ErgoScript?",
+      "answer": "Here's how to create a decentralized identity (DID) verification contract in ErgoScript:\n\n```scala\n{
+    // Define the public key for the identity owner
+    val identityOwner = PK(\"identity_owner_pub_key\")
+    
+    // Define the hash of the identity document
+    val identityHash = blake2b256(\"identity_document\".getBytes)
+    
+    // Core logic for the DID verification contract
+    val isIdentityValid = blake2b256(getVar[Coll[Byte]](1).get) == identityHash
+    
+    identityOwner && isIdentityValid
+}\n```\n\nThis contract:\n1. Allows the identity owner to prove ownership of the identity document\n2. Uses `blake2b256` to hash the identity document and ensure integrity\n3. Ensures that only the identity owner can verify the identity\n\nThis is a basic example of a decentralized identity (DID) verification contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "DID", "identity-verification"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_026",
+      "question": "How do I create a decentralized insurance contract in ErgoScript?",
+      "answer": "Here's how to create a decentralized insurance contract in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the insurer and the insured
+    val insurerPubKey = PK(\"insurer_pub_key\")
+    val insuredPubKey = PK(\"insured_pub_key\")
+    
+    // Define the insurance payout amount
+    val payoutAmount = 1000L // Example: 1000 ERG
+    
+    // Define the condition for payout (e.g., a specific event)
+    val payoutCondition = getVar[Boolean](1).get
+    
+    // Core logic for the decentralized insurance contract
+    val isPayoutValid = payoutCondition && OUTPUTS.exists { (out: Box) =>
+        out.value >= payoutAmount && out.propositionBytes == insuredPubKey.propBytes
+    }
+    
+    insurerPubKey && isPayoutValid
+}\n```\n\nThis contract:\n1. Allows the insurer to payout the insured if the condition is met\n2. Uses `OUTPUTS.exists` to ensure the payout is correctly transferred\n3. Ensures that only the insurer can trigger the payout\n\nThis is a basic example of a decentralized insurance contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "insurance", "decentralized"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_027",
+      "question": "How do I create a decentralized auction contract in ErgoScript?",
+      "answer": "Here's how to create a decentralized auction contract in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the auctioneer and bidders
+    val auctioneerPubKey = PK(\"auctioneer_pub_key\")
+    val bidder1PubKey = PK(\"bidder1_pub_key\")
+    val bidder2PubKey = PK(\"bidder2_pub_key\")
+    
+    // Define the auction deadline
+    val deadline = 150000L // Example: block height 150000
+    
+    // Define the highest bid amount
+    val highestBid = getVar[Long](1).get
+    
+    // Core logic for the decentralized auction contract
+    val isAuctionOpen = HEIGHT < deadline
+    val isBidValid = OUTPUTS.exists { (out: Box) =>
+        out.value >= highestBid && out.propositionBytes == auctioneerPubKey.propBytes
+    }
+    
+    (isAuctionOpen && anyOf(Coll(bidder1PubKey, bidder2PubKey))) || 
+    (!isAuctionOpen && auctioneerPubKey && isBidValid)
+}\n```\n\nThis contract:\n1. Allows bidders to place bids before the auction deadline\n2. Allows the auctioneer to claim the highest bid after the deadline\n3. Uses `OUTPUTS.exists` to ensure the highest bid is correctly transferred\n\nThis is a basic example of a decentralized auction contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "auction", "decentralized"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_028",
+      "question": "How do I create a decentralized prediction market contract in ErgoScript?",
+      "answer": "Here's how to create a decentralized prediction market contract in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the market creator and participants
+    val creatorPubKey = PK(\"creator_pub_key\")
+    val participant1PubKey = PK(\"participant1_pub_key\")
+    val participant2PubKey = PK(\"participant2_pub_key\")
+    
+    // Define the market outcome (e.g., 0 = No, 1 = Yes)
+    val marketOutcome = getVar[Byte](1).get
+    
+    // Define the payout amounts for each outcome
+    val payoutYes = 1000L // Example: 1000 ERG for Yes
+    val payoutNo = 500L // Example: 500 ERG for No
+    
+    // Core logic for the decentralized prediction market contract
+    val isOutcomeValid = marketOutcome == 0 || marketOutcome == 1
+    val isPayoutValid = OUTPUTS.exists { (out: Box) =>
+        (marketOutcome == 1 && out.value >= payoutYes && out.propositionBytes == participant1PubKey.propBytes) ||
+        (marketOutcome == 0 && out.value >= payoutNo && out.propositionBytes == participant2PubKey.propBytes)
+    }
+    
+    creatorPubKey && isOutcomeValid && isPayoutValid
+}\n```\n\nThis contract:\n1. Allows participants to bet on the outcome of an event\n2. Pays out the correct amount based on the outcome\n3. Uses `OUTPUTS.exists` to ensure the payout is correctly transferred\n\nThis is a basic example of a decentralized prediction market contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "prediction-market", "decentralized"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_029",
+      "question": "How do I create a decentralized lending contract in ErgoScript?",
+      "answer": "Here's how to create a decentralized lending contract in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the lender and borrower
+    val lenderPubKey = PK(\"lender_pub_key\")
+    val borrowerPubKey = PK(\"borrower_pub_key\")
+    
+    // Define the loan amount and interest rate
+    val loanAmount = 1000L // Example: 1000 ERG
+    val interestRate = 10L // Example: 10% interest
+    
+    // Define the repayment deadline
+    val deadline = 150000L // Example: block height 150000
+    
+    // Core logic for the decentralized lending contract
+    val isLoanRepaid = OUTPUTS.exists { (out: Box) =>
+        out.value >= loanAmount + (loanAmount * interestRate / 100) &&
+        out.propositionBytes == lenderPubKey.propBytes
+    }
+    
+    val isDeadlineReached = HEIGHT >= deadline
+    
+    (borrowerPubKey && isLoanRepaid) || (lenderPubKey && isDeadlineReached)
+}\n```\n\nThis contract:\n1. Allows the borrower to repay the loan with interest before the deadline\n2. Allows the lender to reclaim the funds if the deadline is reached\n3. Uses `OUTPUTS.exists` to ensure the repayment is correctly transferred\n\nThis is a basic example of a decentralized lending contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "lending", "decentralized"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_030",
+      "question": "How do I create a decentralized escrow contract in ErgoScript?",
+      "answer": "Here's how to create a decentralized escrow contract in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the buyer, seller, and arbiter
+    val buyerPubKey = PK(\"buyer_pub_key\")
+    val sellerPubKey = PK(\"seller_pub_key\")
+    val arbiterPubKey = PK(\"arbiter_pub_key\")
+    
+    // Define the escrow amount
+    val escrowAmount = 1000L // Example: 1000 ERG
+    
+    // Define the condition for releasing funds (e.g., delivery confirmation)
+    val releaseCondition = getVar[Boolean](1).get
+    
+    // Core logic for the decentralized escrow contract
+    val isFundsReleased = releaseCondition && OUTPUTS.exists { (out: Box) =>
+        out.value >= escrowAmount && out.propositionBytes == sellerPubKey.propBytes
+    }
+    
+    val isFundsRefunded = !releaseCondition && OUTPUTS.exists { (out: Box) =>
+        out.value >= escrowAmount && out.propositionBytes == buyerPubKey.propBytes
+    }
+    
+    (buyerPubKey && isFundsReleased) || (sellerPubKey && isFundsRefunded) || arbiterPubKey
+}\n```\n\nThis contract:\n1. Allows the buyer to release funds to the seller if the condition is met\n2. Allows the seller to refund the buyer if the condition is not met\n3. Allows the arbiter to intervene in case of disputes\n\nThis is a basic example of a decentralized escrow contract in ErgoScript.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "escrow", "decentralized"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_031",
+      "question": "How do I create a simple payment contract in ErgoScript?",
+      "answer": "Here's how to create a simple payment contract in ErgoScript:\n\n```scala\n{
+    // Define the recipient's public key
+    val recipientPubKey = PK(\"recipient_pub_key\")
+    
+    // Core logic: Only the recipient can spend the funds
+    recipientPubKey
+}\n```\n\nThis contract:\n1. Defines the recipient's public key\n2. Ensures that only the recipient can spend the funds\n3. Is a basic example of a payment contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "payment", "basic"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_032",
+      "question": "How do I create a contract that locks funds until a specific block height?",
+      "answer": "Here's how to create a height-locked contract in ErgoScript:\n\n```scala\n{
+    // Define the block height at which funds can be spent
+    val unlockHeight = 150000L // Example: block height 150000
+    
+    // Core logic: Funds can only be spent after the unlock height
+    HEIGHT >= unlockHeight
+}\n```\n\nThis contract:\n1. Locks funds until a specific block height\n2. Uses the `HEIGHT` context variable to check the current block height\n3. Is a simple example of a time-locked contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "time-lock", "block-height"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_033",
+      "question": "How do I create a contract that requires a secret preimage to spend funds?",
+      "answer": "Here's how to create a contract that requires a secret preimage in ErgoScript:\n\n```scala\n{
+    // Define the hash of the secret preimage
+    val secretHash = blake2b256(\"secret_preimage\".getBytes)
+    
+    // Core logic: Funds can only be spent if the correct preimage is provided
+    blake2b256(getVar[Coll[Byte]](1).get) == secretHash
+}\n```\n\nThis contract:\n1. Requires the spender to provide the correct preimage of the hash\n2. Uses `blake2b256` to hash the preimage and ensure integrity\n3. Is a simple example of a hash-locked contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "hash-lock", "preimage"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_034",
+      "question": "How do I create a contract that allows spending by either of two parties?",
+      "answer": "Here's how to create a contract that allows spending by either of two parties in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the two parties
+    val party1PubKey = PK(\"party1_pub_key\")
+    val party2PubKey = PK(\"party2_pub_key\")
+    
+    // Core logic: Funds can be spent by either party
+    party1PubKey || party2PubKey
+}\n```\n\nThis contract:\n1. Allows either of the two parties to spend the funds\n2. Uses the `||` operator to combine the spending conditions\n3. Is a simple example of a multi-signature contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "multi-signature", "basic"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_035",
+      "question": "How do I create a contract that requires both parties to sign a transaction?",
+      "answer": "Here's how to create a contract that requires both parties to sign in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the two parties
+    val party1PubKey = PK(\"party1_pub_key\")
+    val party2PubKey = PK(\"party2_pub_key\")
+    
+    // Core logic: Funds can only be spent if both parties sign
+    party1PubKey && party2PubKey
+}\n```\n\nThis contract:\n1. Requires both parties to sign the transaction to spend the funds\n2. Uses the `&&` operator to combine the spending conditions\n3. Is a simple example of a 2-of-2 multi-signature contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "multi-signature", "2-of-2"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_036",
+      "question": "How do I create a contract that allows spending by any 2 out of 3 parties?",
+      "answer": "Here's how to create a contract that allows spending by any 2 out of 3 parties in ErgoScript:\n\n```scala\n{
+    // Define the public keys for the three parties
+    val party1PubKey = PK(\"party1_pub_key\")
+    val party2PubKey = PK(\"party2_pub_key\")
+    val party3PubKey = PK(\"party3_pub_key\")
+    
+    // Core logic: Funds can be spent by any 2 out of 3 parties
+    atLeast(2, Coll(party1PubKey, party2PubKey, party3PubKey))
+}\n```\n\nThis contract:\n1. Allows any 2 out of 3 parties to spend the funds\n2. Uses the `atLeast` function to enforce the spending condition\n3. Is a simple example of a 2-of-3 multi-signature contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "multi-signature", "2-of-3"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_037",
+      "question": "How do I create a contract that allows spending only if a specific condition is met?",
+      "answer": "Here's how to create a conditional spending contract in ErgoScript:\n\n```scala\n{
+    // Define the condition (e.g., a specific value in a register)
+    val condition = SELF.R4[Int].get == 42
+    
+    // Core logic: Funds can only be spent if the condition is true
+    condition
+}\n```\n\nThis contract:\n1. Allows spending only if the value in register `R4` is 42\n2. Uses `SELF.R4` to access the value in the register\n3. Is a simple example of a conditional spending contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "conditional", "register"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_038",
+      "question": "How do I create a contract that allows spending only if the transaction has exactly two outputs?",
+      "answer": "Here's how to create a contract that enforces a specific number of outputs in ErgoScript:\n\n```scala\n{
+    // Core logic: Funds can only be spent if the transaction has exactly two outputs
+    OUTPUTS.size == 2
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction has exactly two outputs\n2. Uses `OUTPUTS.size` to check the number of outputs\n3. Is a simple example of a contract that enforces transaction structure in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "outputs", "transaction-structure"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_039",
+      "question": "How do I create a contract that allows spending only if the transaction fee is below a certain amount?",
+      "answer": "Here's how to create a contract that enforces a maximum transaction fee in ErgoScript:\n\n```scala\n{
+    // Define the maximum allowed fee
+    val maxFee = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    
+    // Core logic: Funds can only be spent if the transaction fee is below maxFee
+    CONTEXT.preHeader.fee <= maxFee
+}\n```\n\nThis contract:\n1. Ensures that the transaction fee does not exceed the specified maximum\n2. Uses `CONTEXT.preHeader.fee` to access the transaction fee\n3. Is a simple example of a fee-limiting contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "transaction-fee", "basic"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_040",
+      "question": "How do I create a contract that allows spending only if a specific token is present in the outputs?",
+      "answer": "Here's how to create a contract that enforces the presence of a specific token in the outputs in ErgoScript:\n\n```scala\n{
+    // Define the token ID
+    val tokenId = \"token_id\".getBytes
+    
+    // Core logic: Funds can only be spent if the specified token is present in the outputs
+    OUTPUTS.exists { (out: Box) =>
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes the specified token in one of the outputs\n2. Uses `OUTPUTS.exists` and `tokens.exists` to check for the token\n3. Is a simple example of a token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_041",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output value?",
+      "answer": "Here's how to create a contract that enforces a specific output value in ErgoScript:\n\n```scala\n{
+    // Define the required output value
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with at least the required value\n2. Uses `OUTPUTS.exists` to check for the required value\n3. Is a simple example of a value-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_042",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output script?",
+      "answer": "Here's how to create a contract that enforces a specific output script in ErgoScript:\n\n```scala\n{
+    // Define the required output script (e.g., a specific public key)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required script
+    OUTPUTS.exists { (out: Box) =>
+        out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required script\n2. Uses `OUTPUTS.exists` and `propositionBytes` to check for the script\n3. Is a simple example of a script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_043",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific token in ErgoScript:\n\n```scala\n{
+    // Define the required token ID and amount
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required token
+    OUTPUTS.exists { (out: Box) =>
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required token and amount\n2. Uses `OUTPUTS.exists` and `tokens.exists` to check for the token\n3. Is a simple example of a token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_044",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_045",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific token and value?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific token and value in ErgoScript:\n\n```scala\n{
+    // Define the required token ID, amount, and value
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required token and value
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required token and value\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a token-and-value-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_046",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific token and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific token and script in ErgoScript:\n\n```scala\n{
+    // Define the required token ID, amount, and script
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required token and script
+    OUTPUTS.exists { (out: Box) =>
+        out.propositionBytes == requiredScript && out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required token and script\n2. Uses `OUTPUTS.exists`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_047",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value, token, and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value, token, and script in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, amount, and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value, token, and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value, token, and script\n2. Uses `OUTPUTS.exists`, `value`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_048",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_049",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_050",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific token and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific token and script in ErgoScript:\n\n```scala\n{
+    // Define the required token ID, amount, and script
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required token and script
+    OUTPUTS.exists { (out: Box) =>
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required token and script\n2. Uses `OUTPUTS.exists`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_051",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value, token, and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value, token, and script in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, amount, and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value, token, and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value, token, and script\n2. Uses `OUTPUTS.exists`, `value`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_052",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_053",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_054",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific token and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific token and script in ErgoScript:\n\n```scala\n{
+    // Define the required token ID, amount, and script
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required token and script
+    OUTPUTS.exists { (out: Box) =>
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required token and script\n2. Uses `OUTPUTS.exists`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_055",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value, token, and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value, token, and script in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, amount, and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value, token, and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value, token, and script\n2. Uses `OUTPUTS.exists`, `value`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_056",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_057",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_058",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_059",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_060",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific token and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific token and script in ErgoScript:\n\n```scala\n{
+    // Define the required token ID, amount, and script
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required token and script
+    OUTPUTS.exists { (out: Box) =>
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required token and script\n2. Uses `OUTPUTS.exists`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_061",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value, token, and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value, token, and script in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, amount, and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value, token, and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value, token, and script\n2. Uses `OUTPUTS.exists`, `value`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_062",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_063",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_064",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_065",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_066",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific token and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific token and script in ErgoScript:\n\n```scala\n{
+    // Define the required token ID, amount, and script
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required token and script
+    OUTPUTS.exists { (out: Box) =>
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required token and script\n2. Uses `OUTPUTS.exists`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_067",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value, token, and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value, token, and script in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, amount, and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value, token, and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value, token, and script\n2. Uses `OUTPUTS.exists`, `value`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_068",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_069",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_070",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_071",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_072",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific token and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific token and script in ErgoScript:\n\n```scala\n{
+    // Define the required token ID, amount, and script
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required token and script
+    OUTPUTS.exists { (out: Box) =>
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required token and script\n2. Uses `OUTPUTS.exists`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_073",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value, token, and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value, token, and script in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, amount, and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value, token, and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.propositionBytes == requiredScript &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value, token, and script\n2. Uses `OUTPUTS.exists`, `value`, `propositionBytes`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-token-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_074",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and token?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and token in ErgoScript:\n\n```scala\n{
+    // Define the required value, token ID, and amount
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val tokenId = \"token_id\".getBytes
+    val tokenAmount = 100L // Example: 100 tokens
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and token
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue &&
+        out.tokens.exists { (token: (Coll[Byte], Long)) =>
+            token._1 == tokenId && token._2 >= tokenAmount
+        }
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and token\n2. Uses `OUTPUTS.exists`, `value`, and `tokens.exists` to check for the required conditions\n3. Is a simple example of a value-and-token-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "outputs", "value"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_075",
+      "question": "How do I create a contract that allows spending only if the transaction includes a specific output with a specific value and script?",
+      "answer": "Here's how to create a contract that enforces a specific output with a specific value and script in ErgoScript:\n\n```scala\n{
+    // Define the required value and script
+    val requiredValue = 1000000L // Example: 1 ERG (1,000,000 nanoERG)
+    val requiredScript = PK(\"required_pub_key\").propBytes
+    
+    // Core logic: Funds can only be spent if the transaction includes an output with the required value and script
+    OUTPUTS.exists { (out: Box) =>
+        out.value >= requiredValue && out.propositionBytes == requiredScript
+    }
+}\n```\n\nThis contract:\n1. Ensures that the spending transaction includes an output with the required value and script\n2. Uses `OUTPUTS.exists`, `value`, and `propositionBytes` to check for the required conditions\n3. Is a simple example of a value-and-script-enforcing contract in ErgoScript\n\nYou can deploy this contract by wrapping it in a proper Ergo transaction output.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "outputs", "value", "script"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_076",
+      "question": "How do I create a contract that enforces a minimum fee for transaction processing?",
+      "answer": "Here's a contract that ensures a minimum fee is paid to miners:\n\n```scala\n{\n  val minFee = 1000000L // 1 ERG (in nanoERGs)\n  val totalFee = OUTPUTS.fold(0L, { (acc: Long, box: Box) => \n    if (box.propositionBytes == minerScriptHash) acc + box.value else acc \n  })\n  totalFee >= minFee\n}\n```\n\nThis contract:\n1. Calculates the total fee paid to miners by summing outputs with a specific miner script\n2. Requires the total fee to be at least `minFee`\n3. Uses `fold` to iterate over transaction outputs",
+      "metadata": {
+        "domain": "transaction_fees",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "fee-enforcement", "miner-payment"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_077",
+      "question": "How do I create a contract that locks funds until a specific timestamp?",
+      "answer": "Here's a time-locked contract using block timestamps:\n\n```scala\n{\n  val unlockTime = 1893456000000L // Unix timestamp (e.g., 2030-01-01)\n  CONTEXT.preHeader.timestamp >= unlockTime\n}\n```\n\nThis contract:\n1. Uses `CONTEXT.preHeader.timestamp` to access the block's timestamp\n2. Locks funds until the specified Unix timestamp\n3. Works with Ergo's timestamp resolution (milliseconds)",
+      "metadata": {
+        "domain": "time_locks",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "timestamp-lock", "absolute-time"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_078",
+      "question": "How do I create a token issuance contract with a fixed supply?",
+      "answer": "Here's a contract to mint a token with a fixed supply:\n\n```scala\n{\n  val tokenName = \"MyToken\"\n  val tokenSupply = 1000L\n  val issuerPubKey = PK(\"issuer_pub_key\")\n\n  // Ensure only one token is minted per transaction\n  OUTPUTS.size == 1 &&\n  OUTPUTS(0).tokens(0)._1 == blake2b256(tokenName) &&\n  OUTPUTS(0).tokens(0)._2 == tokenSupply &&\n  issuerPubKey\n}\n```\n\nThis contract:\n1. Mints exactly 1000 tokens named \"MyToken\"\n2. Restricts minting to the issuer's public key\n3. Uses `blake2b256` to generate a unique token ID",
+      "metadata": {
+        "domain": "token_issuance",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "token-minting", "fixed-supply"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_079",
+      "question": "How do I create a voting contract where votes are weighted by token holdings?",
+      "answer": "Here's a token-weighted voting system:\n\n```scala\n{\n  val voteTokenId = \"vote_token_id\".getBytes\n  val minVotes = 1000L\n  val voterPubKey = PK(\"voter_pub_key\")\n\n  val totalVotes = INPUTS.fold(0L, { (acc: Long, box: Box) =>\n    acc + box.tokens.filter(t => t._1 == voteTokenId).map(_._2).sum\n  })\n\n  voterPubKey && totalVotes >= minVotes\n}\n```\n\nThis contract:\n1. Sums vote tokens across all input boxes\n2. Requires a minimum of 1000 vote tokens to spend\n3. Restricts voting to the designated public key",
+      "metadata": {
+        "domain": "governance",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "voting", "token-weighted"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_080",
+      "question": "How do I create a contract that requires a spending transaction to include a specific data entry?",
+      "answer": "Here's a contract enforcing data inclusion in R4:\n\n```scala\n{\n  val requiredData = \"42\".getBytes\n  OUTPUTS(0).R4[Coll[Byte]].get == requiredData\n}\n```\n\nThis contract:\n1. Requires the first output's R4 register to contain the byte array \"42\"\n2. Uses register R4 for arbitrary data storage\n3. Demonstrates register-based validation",
+      "metadata": {
+        "domain": "data_validation",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "registers", "data-integrity"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_081",
+      "question": "How do I create a privacy-preserving contract using ring signatures?",
+      "answer": "Here's a contract enabling anonymous spending via ring signatures:\n\n```scala\n{\n  val candidates = Coll(\n    PK(\"pubKey1\"), PK(\"pubKey2\"), PK(\"pubKey3\")\n  )\n  atLeast(1, candidates)\n}\n```\n\nThis contract:\n1. Allows spending by any 1 of 3 parties without revealing which\n2. Uses `atLeast(1)` to create a ring signature\n3. Provides plausible deniability for transaction origins",
+      "metadata": {
+        "domain": "privacy",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "ring-signatures", "anonymity"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_082",
+      "question": "How do I create a dynamic NFT contract where metadata changes based on time?",
+      "answer": "Here's a time-based dynamic NFT:\n\n```scala\n{\n  val artHashDay = blake2b256(\"day_version\")\n  val artHashNight = blake2b256(\"night_version\")\n  val currentArt = if (HEIGHT % 1440 < 720) artHashDay else artHashNight\n\n  OUTPUTS(0).R4[Coll[Byte]].get == currentArt\n}\n```\n\nThis contract:\n1. Swaps NFT artwork every 720 blocks (~12 hours)\n2. Stores artwork hash in register R4\n3. Uses block height for time tracking",
+      "metadata": {
+        "domain": "nft",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "dynamic-nft", "time-based"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_083",
+      "question": "How do I implement a decentralized price oracle?",
+      "answer": "Here's a simple price oracle contract:\n\n```scala\n{\n  val oracleKeys = Coll(PK(\"oracle1\"), PK(\"oracle2\"), PK(\"oracle3\"))\n  val requiredSignatures = 2\n  val price = getVar[Long](1).get\n\n  atLeast(requiredSignatures, oracleKeys) &&\n  OUTPUTS(0).R4[Long].get == price\n}\n```\n\nThis contract:\n1. Requires 2/3 oracle signatures\n2. Stores price data in R4\n3. Uses context variables for price submission",
+      "metadata": {
+        "domain": "oracles",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "price-oracle", "decentralized"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_084",
+      "question": "How do I create a DAO proposal system?",
+      "answer": "Here's a DAO proposal contract:\n\n```scala\n{\n  val proposalHash = blake2b256(\"proposal_details\")\n  val minVotes = 1000L\n  val voteTokenId = \"dao_token_id\".getBytes\n\n  val totalVotes = INPUTS.fold(0L, { (acc: Long, box: Box) =>\n    acc + box.tokens.filter(t => t._1 == voteTokenId).map(_._2).sum\n  })\n\n  OUTPUTS(0).R4[Coll[Byte]].get == proposalHash &&\n  totalVotes >= minVotes\n}\n```\n\nThis contract:\n1. Tracks votes using DAO tokens\n2. Requires minimum vote weight for execution\n3. Stores proposal hash in outputs",
+      "metadata": {
+        "domain": "governance",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "dao", "proposal-system"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_085",
+      "question": "How do I create a collateralized loan contract?",
+      "answer": "Here's a DeFi-style loan contract:\n\n```scala\n{\n  val collateralRatio = 150 // 150%\n  val loanAmount = 100000000L // 100 ERG\n  val collateralTokenId = \"gold_token_id\".getBytes\n\n  val collateralValue = INPUTS.fold(0L, { (acc: Long, box: Box) =>\n    acc + box.tokens.filter(t => t._1 == collateralTokenId).map(_._2).sum\n  }) * oraclePrice // Assume oraclePrice is defined\n\n  collateralValue >= (loanAmount * collateralRatio / 100)\n}\n```\n\nThis contract:\n1. Requires overcollateralization\n2. Uses external price oracle\n3. Calculates collateral value dynamically",
+      "metadata": {
+        "domain": "defi",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "loans", "collateral"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_086",
+      "question": "How do I create a cross-chain atomic swap contract?",
+      "answer": "Here's a cross-chain atomic swap contract:\n\n```scala\n{\n  val secretHash = blake2b256(\"secret_preimage\")\n  val deadline = 150000L // Block height\n  val recipientPubKey = PK(\"recipient_pub_key\")\n\n  (HEIGHT <= deadline && blake2b256(getVar[Coll[Byte]](1).get) == secretHash) ||\n  (HEIGHT > deadline && recipientPubKey)\n}\n```\n\nThis contract:\n1. Allows the recipient to claim funds by revealing the secret preimage\n2. Refunds the sender if the deadline passes\n3. Uses `blake2b256` for hash verification",
+      "metadata": {
+        "domain": "cross_chain",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "atomic-swap", "cross-chain"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_087",
+      "question": "How do I create a zero-knowledge proof-based contract?",
+      "answer": "Here's a contract using zero-knowledge proofs (ZKPs):\n\n```scala\n{\n  val proof = getVar[Coll[Byte]](1).get\n  val statementHash = blake2b256(\"statement_to_prove\")\n\n  verifyZKProof(proof, statementHash)\n}\n```\n\nThis contract:\n1. Verifies a ZKP provided in a context variable\n2. Uses `verifyZKProof` to validate the proof\n3. Demonstrates privacy-preserving logic",
+      "metadata": {
+        "domain": "privacy",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "zkp", "zero-knowledge"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_088",
+      "question": "How do I create a state channel for off-chain transactions?",
+      "answer": "Here's a state channel contract:\n\n```scala\n{\n  val channelId = \"channel_id\".getBytes\n  val participant1 = PK(\"participant1_pub_key\")\n  val participant2 = PK(\"participant2_pub_key\")\n  val latestStateHash = blake2b256(\"latest_state\")\n\n  (participant1 || participant2) &&\n  OUTPUTS(0).R4[Coll[Byte]].get == latestStateHash\n}\n```\n\nThis contract:\n1. Allows either participant to close the channel\n2. Stores the latest state hash in R4\n3. Enables off-chain transactions with on-chain settlement",
+      "metadata": {
+        "domain": "scalability",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "state-channels", "off-chain"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_089",
+      "question": "How do I create a decentralized identity (DID) verification contract?",
+      "answer": "Here's a DID verification contract:\n\n```scala\n{\n  val didHash = blake2b256(\"did_document\")\n  val issuerPubKey = PK(\"issuer_pub_key\")\n\n  issuerPubKey &&\n  OUTPUTS(0).R4[Coll[Byte]].get == didHash\n}\n```\n\nThis contract:\n1. Verifies a DID document signed by the issuer\n2. Stores the DID hash in R4\n3. Demonstrates decentralized identity management",
+      "metadata": {
+        "domain": "identity",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "did", "decentralized-identity"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_090",
+      "question": "How do I create a decentralized insurance payout contract?",
+      "answer": "Here's an insurance payout contract:\n\n```scala\n{\n  val claimHash = blake2b256(\"claim_details\")\n  val insurerPubKey = PK(\"insurer_pub_key\")\n  val payoutAmount = 100000000L // 100 ERG\n\n  insurerPubKey &&\n  OUTPUTS(0).value >= payoutAmount &&\n  OUTPUTS(0).R4[Coll[Byte]].get == claimHash\n}\n```\n\nThis contract:\n1. Requires insurer approval for payouts\n2. Ensures payout amount and claim details\n3. Uses R4 for claim verification",
+      "metadata": {
+        "domain": "insurance",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "insurance", "payout"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_091",
+      "question": "How do I create a token vesting contract?",
+      "answer": "Here's a token vesting contract:\n\n```scala\n{\n  val beneficiaryPubKey = PK(\"beneficiary_pub_key\")\n  val vestingPeriod = 1000L // Blocks\n  val vestingStartHeight = SELF.creationInfo._1\n\n  HEIGHT >= vestingStartHeight + vestingPeriod &&\n  beneficiaryPubKey\n}\n```\n\nThis contract:\n1. Locks tokens for a specific period\n2. Allows the beneficiary to claim tokens after the vesting period\n3. Uses `SELF.creationInfo._1` to track the start height",
+      "metadata": {
+        "domain": "token_vesting",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "vesting", "time-lock"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_092",
+      "question": "How do I create a multi-asset atomic swap contract?",
+      "answer": "Here's a multi-asset atomic swap contract:\n\n```scala\n{\n  val token1Id = \"token1_id\".getBytes\n  val token2Id = \"token2_id\".getBytes\n  val token1Amount = 100L\n  val token2Amount = 200L\n\n  OUTPUTS.exists { (out: Box) =>\n    out.tokens.exists { (token: (Coll[Byte], Long)) =>\n      token._1 == token1Id && token._2 >= token1Amount\n    }\n  } &&\n  OUTPUTS.exists { (out: Box) =>\n    out.tokens.exists { (token: (Coll[Byte], Long)) =>\n      token._1 == token2Id && token._2 >= token2Amount\n    }\n  }\n}\n```\n\nThis contract:\n1. Ensures both tokens are exchanged atomically\n2. Uses `OUTPUTS.exists` to verify token amounts\n3. Demonstrates multi-asset swaps",
+      "metadata": {
+        "domain": "multi_asset",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "atomic-swap", "multi-asset"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_093",
+      "question": "How do I create a decentralized exchange (DEX) order contract?",
+      "answer": "Here's a DEX order contract:\n\n```scala\n{\n  val tokenId = \"token_id\".getBytes\n  val tokenAmount = 100L\n  val ergAmount = 100000000L // 100 ERG\n  val traderPubKey = PK(\"trader_pub_key\")\n\n  OUTPUTS.exists { (out: Box) =>\n    out.tokens.exists { (token: (Coll[Byte], Long)) =>\n      token._1 == tokenId && token._2 >= tokenAmount\n    } &&\n    out.value >= ergAmount &&\n    out.propositionBytes == traderPubKey.propBytes\n  }\n}\n```\n\nThis contract:\n1. Matches token and ERG amounts\n2. Restricts spending to the trader's public key\n3. Demonstrates DEX order logic",
+      "metadata": {
+        "domain": "dex",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "dex", "order-matching"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_094",
+      "question": "How do I create a decentralized stablecoin contract?",
+      "answer": "Here's a stablecoin contract:\n\n```scala\n{\n  val collateralRatio = 150 // 150%\n  val stablecoinAmount = 100L\n  val collateralTokenId = \"collateral_token_id\".getBytes\n  val oraclePrice = getVar[Long](1).get // Price from oracle\n\n  val collateralValue = INPUTS.fold(0L, { (acc: Long, box: Box) =>\n    acc + box.tokens.filter(t => t._1 == collateralTokenId).map(_._2).sum\n  }) * oraclePrice\n\n  collateralValue >= (stablecoinAmount * collateralRatio / 100)\n}\n```\n\nThis contract:\n1. Requires overcollateralization for stablecoin issuance\n2. Uses an oracle for price feeds\n3. Demonstrates DeFi stablecoin mechanics",
+      "metadata": {
+        "domain": "defi",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "stablecoin", "collateral"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    },
+    {
+      "id": "ergo_095",
+      "question": "How do I create a decentralized lottery contract?",
+      "answer": "Here's a decentralized lottery contract:\n\n```scala\n{\n  val ticketPrice = 1000000L // 1 ERG\n  val winningNumber = getVar[Int](1).get // Random number from oracle\n  val participantNumber = SELF.R4[Int].get\n\n  SELF.value >= ticketPrice &&\n  participantNumber == winningNumber\n}\n```\n\nThis contract:\n1. Requires participants to pay a ticket price\n2. Uses a random number from an oracle to determine the winner\n3. Stores participant numbers in R4",
+      "metadata": {
+        "domain": "lottery",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "lottery", "randomness"],
+        "source": "original",
+        "language": "en",
+        "contributor": "shark_coder"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_096",
+      "question": "How can I create a basic ErgoScript contract that requires two signatures to spend funds?",
+      "answer": "Here's how to create a multi-signature contract in ErgoScript that requires both Alice and Bob to sign:\n\n```scala\n{\n  // Define public keys for both parties\n  val alicePK = alice  // Alice's public key\n  val bobPK = bob    // Bob's public key\n  \n  // Require both signatures using AND (&&) operator\n  alicePK && bobPK\n}\n```\n\nThis contract:\n1. Uses named constants for public keys\n2. Combines them with logical AND (&&)\n3. Both parties must provide their signatures to spend\n4. Creates an atomic multi-signature requirement\n\nThe spending transaction will need to provide proofs (signatures) from both private keys.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "multisig", "signatures"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_097", 
+      "question": "How do I implement a smart contract for atomic swap between two parties in ErgoScript?",
+      "answer": "Here's how to implement an atomic swap contract in ErgoScript:\n\n```scala\n{\n  // Context and parameters\n  val alice = SELF.R4[SigmaProp].get  // Alice's public key\n  val bob = SELF.R5[SigmaProp].get    // Bob's public key\n  val deadline = SELF.R6[Int].get      // Swap deadline\n  \n  // Secret hash commitment\n  val hashCommitment = SELF.R7[Coll[Byte]].get\n  \n  // Spending conditions\n  val normalSpend = {\n    val secret = getVar[Coll[Byte]](1).get\n    bob && blake2b256(secret) == hashCommitment\n  }\n  \n  val refund = alice && HEIGHT >= deadline\n  \n  normalSpend || refund\n}\n```\n\nThis contract enables atomic swaps by:\n1. Storing participant public keys and deadline in registers\n2. Allowing Bob to claim with correct secret hash\n3. Allowing Alice to refund after deadline\n4. Using OR (||) to combine conditions\n5. Providing hash-locked security",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "atomic-swap", "hash-lock"],
+        "source": "original", 
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_098",
+      "question": "How can I write an ErgoScript contract for crowdfunding with a deadline and minimum goal?",
+      "answer": "Here's a crowdfunding contract in ErgoScript with deadline and funding goal:\n\n```scala\n{\n  val projectPK = SELF.R4[SigmaProp].get     // Project owner's key\n  val deadline = SELF.R5[Int].get            // Funding deadline\n  val minToRaise = SELF.R6[Long].get         // Minimum funding goal\n  \n  val beforeDeadline = HEIGHT <= deadline\n  \n  val enoughRaised = { \n    val projectOut = OUTPUTS(0)\n    projectOut.value >= minToRaise && \n    projectOut.propositionBytes == projectPK.propBytes\n  }\n  \n  val success = beforeDeadline && enoughRaised\n  val refund = !beforeDeadline\n  \n  success || refund\n}\n```\n\nThis crowdfunding contract:\n1. Stores project details in registers\n2. Checks if deadline is reached\n3. Verifies minimum funding goal\n4. Allows project owner to collect if successful\n5. Enables refunds if deadline passes\n6. Uses logical operators to combine conditions",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "crowdfunding", "deadline"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_099",
+      "question": "How do I create a time-locked ErgoScript contract with multiple spending paths?",
+      "answer": "Here's a time-locked contract with multiple spending conditions:\n\n```scala\n{\n  // Define participants\n  val owner = SELF.R4[SigmaProp].get\n  val beneficiary = SELF.R5[SigmaProp].get\n  \n  // Time constraints\n  val firstDeadline = SELF.R6[Int].get\n  val secondDeadline = SELF.R7[Int].get\n  \n  // Spending paths\n  val ownerPath = owner && HEIGHT < firstDeadline\n  val partialPath = (owner && beneficiary) && \n                    HEIGHT >= firstDeadline && \n                    HEIGHT < secondDeadline\n  val finalPath = beneficiary && HEIGHT >= secondDeadline\n  \n  ownerPath || partialPath || finalPath\n}\n```\n\nThis contract implements:\n1. Multiple time-based spending conditions\n2. Different access rights based on time periods\n3. Combination of signatures and height checks\n4. Gradual transfer of spending rights\n5. Clear separation of spending paths",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "timelock", "multi-stage"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_100",
+      "question": "How can I implement a ring signature contract in ErgoScript?",
+      "answer": "Here's how to implement a ring signature contract in ErgoScript:\n\n```scala\n{\n  // Define public keys for ring members\n  val ring = SELF.R4[Coll[SigmaProp]].get\n  \n  // Number of required signatures\n  val requiredSigs = SELF.R5[Int].get\n  \n  // Use atLeast to create ring signature requirement\n  atLeast(requiredSigs, ring)\n}\n```\n\nThis ring signature contract:\n1. Stores multiple public keys in a collection\n2. Specifies required number of signatures\n3. Uses atLeast for threshold signatures\n4. Preserves signer anonymity\n5. Implements k-of-n signature scheme\n\nThe contract enables anonymous signing where only k out of n ring members need to sign.",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "ring-signature", "privacy"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_101",
+      "question": "What are the main data types in ErgoScript and how do I use them?",
+      "answer": "Here's an overview of the main data types in ErgoScript with examples:\n\n```scala\n{\n  // Numeric types\n  val amount: Long = 1000L        // Long for currency amounts\n  val height: Int = 100           // Int for block heights\n  \n  // Boolean type\n  val isValid: Boolean = true\n  \n  // Byte arrays\n  val hash: Coll[Byte] = blake2b256(SELF.id)\n  \n  // Group elements (for cryptographic operations)\n  val pubKey: GroupElement = SELF.R4[GroupElement].get\n  \n  // Collections\n  val tokens: Coll[(Coll[Byte], Long)] = SELF.tokens\n  \n  // SigmaProp for cryptographic propositions\n  val ownerPK: SigmaProp = SELF.R5[SigmaProp].get\n  \n  // Example usage in a contract\n  ownerPK && HEIGHT > height && SELF.value >= amount\n}\n```\n\nKey points about ErgoScript data types:\n1. Long is used for token amounts and ERG values\n2. Int is used for heights and small numbers\n3. Coll[Byte] represents byte arrays (hashes, IDs)\n4. GroupElement is used for public keys and crypto operations\n5. SigmaProp represents spending conditions\n6. Collections are immutable\n7. Type inference is available but explicit types help clarity",
+      "metadata": {
+        "domain": "language_basics",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "data-types", "syntax"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_102",
+      "question": "How do I access and use context variables in ErgoScript?",
+      "answer": "Here's how to work with context variables in ErgoScript:\n\n```scala\n{\n  // Built-in context variables\n  val currentHeight = HEIGHT               // Current blockchain height\n  val inputs = INPUTS                      // All input boxes\n  val outputs = OUTPUTS                    // All output boxes\n  val selfBox = SELF                       // Current box being spent\n  \n  // Custom context variables using getVar\n  val secretHash = getVar[Coll[Byte]](0).get  // Get hash from context\n  val timestamp = getVar[Long](1).get         // Get timestamp from context\n  \n  // Accessing input/output boxes\n  val firstInput = INPUTS(0)\n  val firstOutput = OUTPUTS(0)\n  \n  // Example contract using context\n  val validSpend = {\n    val correctValue = firstOutput.value >= SELF.value\n    val correctHeight = HEIGHT > timestamp\n    val correctHash = blake2b256(getVar[Coll[Byte]](2).get) == secretHash\n    \n    correctValue && correctHeight && correctHash\n  }\n  \n  validSpend\n}\n```\n\nContext variables provide:\n1. Access to blockchain state (HEIGHT)\n2. Transaction information (INPUTS, OUTPUTS)\n3. Current box information (SELF)\n4. Custom variables via getVar\n5. Transaction validation context\n\nContext variables are crucial for:\n- Validating transaction conditions\n- Accessing box information\n- Implementing time-based logic\n- Verifying custom proofs\n- Checking transaction structure",
+      "metadata": {
+        "domain": "language_basics",
+        "difficulty": "beginner",
+        "tags": ["ergoscript", "context", "variables"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_103",
+      "question": "How do I implement token minting logic in ErgoScript?",
+      "answer": "Here's how to implement token minting in ErgoScript:\n\n```scala\n{\n  // Token minting parameters\n  val maxSupply = 1000000L\n  val decimals = 2\n  val tokenName = \"MyToken\"\n  \n  // Ensure this is the initial minting transaction\n  val isMinting = OUTPUTS(0).tokens.size > SELF.tokens.size\n  \n  // Token ID will be the ID of the first input box\n  val tokenId = INPUTS(0).id\n  \n  // Verify minting conditions\n  val validMinting = {\n    val mintedToken = OUTPUTS(0).tokens(0)\n    \n    // Verify token properties\n    val correctTokenId = mintedToken._1 == tokenId\n    val correctAmount = mintedToken._2 <= maxSupply\n    \n    // Verify token details are stored in registers\n    val correctR4 = OUTPUTS(0).R4[Coll[Byte]].get == tokenName.getBytes()\n    val correctR5 = OUTPUTS(0).R5[Int].get == decimals\n    \n    correctTokenId && correctAmount && correctR4 && correctR5\n  }\n  \n  // Require issuer's signature and valid minting\n  issuerPK && (isMinting && validMinting)\n}\n```\n\nThis token minting contract:\n1. Sets token parameters (supply, decimals, name)\n2. Verifies first-time minting\n3. Establishes token ID from first input\n4. Enforces supply limits\n5. Stores token metadata in registers\n6. Requires issuer authorization\n\nKey considerations:\n- Token ID is derived from first input box ID\n- Metadata is stored in R4 and R5 registers\n- Supply is enforced at contract level\n- Issuer signature is required\n- Only allows single minting transaction",
+      "metadata": {
+        "domain": "token_operations",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "minting"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_104",
+      "question": "How do I implement a box register-based state machine in ErgoScript?",
+      "answer": "Here's how to implement a state machine using box registers in ErgoScript:\n\n```scala\n{\n  // State definitions\n  val STATE_CREATED = 0\n  val STATE_ACTIVE = 1\n  val STATE_COMPLETED = 2\n  \n  // Current state stored in R4\n  val currentState = SELF.R4[Int].get\n  \n  // Participant public keys\n  val creator = SELF.R5[SigmaProp].get\n  val participant = SELF.R6[SigmaProp].get\n  \n  // State transition logic\n  val validStateTransition = {\n    val outputState = OUTPUTS(0).R4[Int].get\n    val sameScript = OUTPUTS(0).propositionBytes == SELF.propositionBytes\n    \n    currentState match {\n      case STATE_CREATED => {\n        val validNext = outputState == STATE_ACTIVE\n        val correctParticipant = participant && sameScript\n        validNext && correctParticipant\n      }\n      case STATE_ACTIVE => {\n        val validNext = outputState == STATE_COMPLETED\n        val correctCreator = creator && sameScript\n        validNext && correctCreator\n      }\n      case _ => false\n    }\n  }\n  \n  // Main contract logic\n  validStateTransition\n}\n```\n\nThis state machine contract:\n1. Defines distinct states using integers\n2. Stores current state in R4 register\n3. Stores participant keys in R5 and R6\n4. Enforces valid state transitions\n5. Requires appropriate signatures\n6. Maintains state machine integrity\n\nKey features:\n- State is preserved across transactions\n- Only valid transitions allowed\n- Different permissions per state\n- Script self-replication for state preservation\n- Type-safe state handling",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "state-machine", "registers"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_105",
+      "question": "How do I integrate an oracle with an ErgoScript contract?",
+      "answer": "Here's how to integrate oracle data in an ErgoScript contract:\n\n```scala\n{\n  // Oracle pool box reference\n  val oraclePoolNFT = fromBase58(\"2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe\")\n  \n  // Find latest oracle pool box\n  val oracleBox = CONTEXT.dataInputs.find({ (b: Box) => \n    b.tokens.size > 0 && b.tokens(0)._1 == oraclePoolNFT\n  }).get\n  \n  // Extract oracle data\n  val rate = oracleBox.R4[Long].get        // Price data\n  val timestamp = oracleBox.R5[Long].get    // Data timestamp\n  \n  // Verify oracle data freshness\n  val maxDelay = 30 // blocks\n  val dataFresh = HEIGHT - timestamp <= maxDelay\n  \n  // Contract logic using oracle data\n  val validPrice = {\n    val minPrice = 100000000L // 1 ERG in nanoERGs\n    val ergAmount = SELF.value\n    val tokenAmount = SELF.tokens(0)._2\n    \n    ergAmount >= tokenAmount * rate && dataFresh\n  }\n  \n  // Main contract logic\n  validPrice && blake2b256(OUTPUTS(0).propositionBytes) == receiverPubKeyHash\n}\n```\n\nThis oracle integration:\n1. References oracle pool via NFT\n2. Finds latest oracle box in data inputs\n3. Extracts price and timestamp data\n4. Verifies data freshness\n5. Uses data in contract logic\n\nKey aspects:\n- Oracle data accessed via data inputs\n- Freshness checking prevents stale data use\n- Rate calculations for token exchange\n- NFT ensures correct oracle pool\n- Type-safe data extraction from registers",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "oracle", "data-inputs"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_106",
+      "question": "How do I implement token burning logic in ErgoScript?",
+      "answer": "Here's how to implement token burning in ErgoScript:\n\n```scala\n{\n  // Token to be burned\n  val tokenId = SELF.tokens(0)._1\n  val initialAmount = SELF.tokens(0)._2\n  \n  // Burning conditions\n  val validBurn = {\n    // Find total token amount in outputs\n    val remainingAmount = OUTPUTS.fold(0L, { (acc: Long, box: Box) =>\n      acc + box.tokens.filter(_._1 == tokenId).fold(0L, { (sum: Long, token: (Coll[Byte], Long)) =>\n        sum + token._2\n      })\n    })\n    \n    // Verify burning\n    val amountBurned = initialAmount - remainingAmount\n    val minimumBurn = 100L // Minimum tokens to burn\n    \n    amountBurned >= minimumBurn\n  }\n  \n  // Authorization and burning verification\n  burnerPK && validBurn && OUTPUTS(0).propositionBytes == returnToPK\n}\n```\n\nThis token burning contract:\n1. Tracks initial token amount\n2. Calculates remaining tokens across outputs\n3. Verifies minimum burn amount\n4. Requires authorization\n5. Ensures proper return of remaining tokens\n\nKey considerations:\n- Token amounts must be tracked precisely\n- Burning is implemented by not including tokens in outputs\n- Authorization prevents unauthorized burning\n- Minimum burn amount can be enforced\n- Remaining tokens can be returned to specified address",
+      "metadata": {
+        "domain": "token_operations",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "tokens", "burning"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_107",
+      "question": "How do I implement a wallet integration contract in ErgoScript?",
+      "answer": "Here's how to create a wallet-friendly contract in ErgoScript:\n\n```scala\n{\n  // Wallet integration parameters\n  val walletPK = SELF.R4[SigmaProp].get\n  val changeAddress = SELF.R5[Coll[Byte]].get\n  val minChange = 1000000L // 0.001 ERG\n  \n  // Transaction validation for wallet integration\n  val validTransaction = {\n    // Verify change output\n    val changeOutput = OUTPUTS(1)\n    val correctChangeScript = blake2b256(changeOutput.propositionBytes) == changeAddress\n    val sufficientChange = changeOutput.value >= minChange\n    \n    // Verify main output\n    val mainOutput = OUTPUTS(0)\n    val correctValue = mainOutput.value >= SELF.value - minChange\n    val correctRecipient = blake2b256(mainOutput.propositionBytes) == recipientPKHash\n    \n    // Token handling\n    val tokensPreserved = SELF.tokens.forall({ token: (Coll[Byte], Long) =>\n      val remainingAmount = OUTPUTS.fold(0L, { (acc: Long, box: Box) =>\n        acc + box.tokens.filter(_._1 == token._1).fold(0L, { (sum: Long, t: (Coll[Byte], Long)) =>\n          sum + t._2\n        })\n      })\n      remainingAmount >= token._2\n    })\n    \n    correctChangeScript && sufficientChange && \n    correctValue && correctRecipient && tokensPreserved\n  }\n  \n  // Main contract logic with wallet signature\n  walletPK && validTransaction\n}\n```\n\nThis wallet integration contract:\n1. Defines wallet parameters in registers\n2. Validates change outputs\n3. Verifies transaction structure\n4. Handles token preservation\n5. Enforces minimum values\n\nKey features:\n- Change address management\n- Token tracking across outputs\n- Minimum amount enforcement\n- Output script verification\n- Wallet signature requirement",
+      "metadata": {
+        "domain": "dapp_integration",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "wallet", "integration"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_108",
+      "question": "How do I implement a threshold signature scheme in ErgoScript?",
+      "answer": "Here's how to implement a threshold signature scheme in ErgoScript:\n\n```scala\n{\n  // Threshold signature parameters\n  val publicKeys = SELF.R4[Coll[SigmaProp]].get  // Array of public keys\n  val threshold = SELF.R5[Int].get               // Required signatures\n  val totalSigners = publicKeys.size\n  \n  // Validity checks\n  val validParameters = {\n    val thresholdInRange = threshold > 0 && threshold <= totalSigners\n    val sufficientSigners = totalSigners > 0\n    \n    thresholdInRange && sufficientSigners\n  }\n  \n  // Threshold signature implementation\n  val validSignatures = {\n    // Create threshold proof using atLeast\n    val thresholdMet = atLeast(threshold, publicKeys)\n    \n    // Additional validation logic\n    val outputPreserved = OUTPUTS(0).propositionBytes == SELF.propositionBytes\n    val valuePreserved = OUTPUTS(0).value >= SELF.value - 1000000L // Fee allowance\n    \n    thresholdMet && outputPreserved && valuePreserved\n  }\n  \n  // Main contract logic\n  validParameters && validSignatures\n}\n```\n\nThis threshold signature contract:\n1. Stores public keys in register\n2. Defines required signature threshold\n3. Validates parameter ranges\n4. Implements threshold logic using atLeast\n5. Preserves contract state\n\nKey aspects:\n- Flexible threshold configuration\n- Multiple signer support\n- Parameter validation\n- State preservation\n- Fee handling",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "threshold-signature", "multisig"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_109",
+      "question": "How do I implement a DApp frontend interaction contract in ErgoScript?",
+      "answer": "Here's how to implement a DApp-friendly contract in ErgoScript:\n\n```scala\n{\n  // DApp interaction parameters\n  val dAppNFT = SELF.tokens(0)._1              // DApp identifier NFT\n  val interactionData = SELF.R4[Coll[Byte]].get // Frontend data\n  val userPK = SELF.R5[SigmaProp].get           // User's public key\n  val dAppPK = SELF.R6[SigmaProp].get           // DApp's public key\n  \n  // Interaction validation\n  val validInteraction = {\n    // Verify DApp NFT preservation\n    val nftPreserved = OUTPUTS(0).tokens.exists({ token: (Coll[Byte], Long) =>\n      token._1 == dAppNFT && token._2 == 1\n    })\n    \n    // Verify state transition\n    val newData = OUTPUTS(0).R4[Coll[Byte]].get\n    val validStateTransition = blake2b256(newData) != blake2b256(interactionData)\n    \n    // Verify output structure\n    val scriptPreserved = OUTPUTS(0).propositionBytes == SELF.propositionBytes\n    val valuePreserved = OUTPUTS(0).value >= SELF.value - 1000000L\n    \n    nftPreserved && validStateTransition && scriptPreserved && valuePreserved\n  }\n  \n  // Action authorization\n  val validAuthorization = {\n    val userAction = userPK\n    val dAppAction = dAppPK && HEIGHT > SELF.creationInfo._1 + 30\n    \n    userAction || dAppAction\n  }\n  \n  // Main contract logic\n  validInteraction && validAuthorization\n}\n```\n\nThis DApp interaction contract:\n1. Uses NFT for DApp identification\n2. Stores interaction data in registers\n3. Validates state transitions\n4. Preserves contract integrity\n5. Implements dual authorization\n\nKey features:\n- Frontend data handling\n- State transition validation\n- NFT-based identification\n- Dual authorization system\n- Timeout mechanism for DApp actions",
+      "metadata": {
+        "domain": "dapp_integration",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "dapp", "frontend"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_110",
+      "question": "How do I implement a self-replicating contract pattern in ErgoScript?",
+      "answer": "Here's how to implement a self-replicating contract pattern in ErgoScript:\n\n```scala\n{\n  // Contract state parameters\n  val iteration = SELF.R4[Int].get           // Current iteration\n  val maxIterations = SELF.R5[Int].get       // Maximum iterations\n  val stateData = SELF.R6[Coll[Byte]].get    // Current state\n  val ownerPK = SELF.R7[SigmaProp].get       // Owner's public key\n  \n  // Self-replication logic\n  val validReplication = {\n    val nextOutput = OUTPUTS(0)\n    \n    // Verify script preservation\n    val scriptPreserved = nextOutput.propositionBytes == SELF.propositionBytes\n    \n    // Verify iteration increment\n    val nextIteration = nextOutput.R4[Int].get\n    val validIteration = nextIteration == iteration + 1\n    \n    // Verify state transition\n    val nextState = nextOutput.R6[Coll[Byte]].get\n    val validState = blake2b256(nextState) != blake2b256(stateData)\n    \n    // Verify other parameters preserved\n    val paramsPreserved = {\n      nextOutput.R5[Int].get == maxIterations &&\n      nextOutput.R7[SigmaProp].get == ownerPK\n    }\n    \n    scriptPreserved && validIteration && validState && paramsPreserved\n  }\n  \n  // Termination condition\n  val canTerminate = iteration >= maxIterations\n  \n  // Main contract logic\n  val continueReplication = iteration < maxIterations && validReplication\n  val validTermination = canTerminate && ownerPK\n  \n  continueReplication || validTermination\n}\n```\n\nThis self-replicating contract:\n1. Tracks iteration count\n2. Maintains state across replications\n3. Enforces valid state transitions\n4. Preserves contract parameters\n5. Includes termination condition\n\nKey aspects:\n- Iteration control\n- State management\n- Script preservation\n- Parameter validation\n- Controlled termination",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "expert",
+        "tags": ["ergoscript", "self-replication", "state-management"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    }
+  ]
+}
+{
+  "conversations": [
+    {
+      "id": "ergo_111",
+      "question": "How do I implement atomic swap functionality between two different tokens in ErgoScript?",
+      "answer": "Here's how to implement an atomic swap contract for tokens in ErgoScript:\n\n```scala\n{\n  // Swap parameters stored in registers\n  val token1Id = SELF.R4[Coll[Byte]].get\n  val token1Amount = SELF.R5[Long].get\n  val token2Id = SELF.R6[Coll[Byte]].get\n  val token2Amount = SELF.R7[Long].get\n  val initiatorPK = SELF.R8[SigmaProp].get\n  val deadline = SELF.R9[Int].get\n  \n  // Swap validation logic\n  val validSwap = {\n    val output = OUTPUTS(0)\n    \n    // Verify token1 is sent to initiator\n    val token1Transfer = output.tokens.exists({ token: (Coll[Byte], Long) =>\n      token._1 == token1Id && token._2 >= token1Amount &&\n      blake2b256(output.propositionBytes) == blake2b256(initiatorPK.propBytes)\n    })\n    \n    // Verify token2 is received\n    val token2Received = SELF.tokens.exists({ token: (Coll[Byte], Long) =>\n      token._1 == token2Id && token._2 >= token2Amount\n    })\n    \n    token1Transfer && token2Received\n  }\n  \n  // Refund condition\n  val refund = {\n    HEIGHT >= deadline && initiatorPK\n  }\n  \n  // Main contract logic\n  validSwap || refund\n}\n```\n\nThis atomic swap contract:\n1. Defines swap parameters for both tokens\n2. Verifies token transfers\n3. Ensures correct recipient addresses\n4. Includes refund mechanism\n5. Enforces atomic execution\n\nKey features:\n- Token amount verification\n- Deadline-based refunds\n- Atomic execution guarantee\n- Address verification\n- Parameter preservation",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "atomic-swap", "tokens"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_112",
+      "question": "How do I implement a complex state machine with multiple participants in ErgoScript?",
+      "answer": "Here's how to implement a multi-participant state machine in ErgoScript:\n\n```scala\n{\n  // State machine parameters\n  val STATE_INIT = 0\n  val STATE_COMMITTED = 1\n  val STATE_REVEALED = 2\n  val STATE_COMPLETED = 3\n  \n  // Current state and participants\n  val currentState = SELF.R4[Int].get\n  val participant1 = SELF.R5[SigmaProp].get\n  val participant2 = SELF.R6[SigmaProp].get\n  val commitmentDeadline = SELF.R7[Int].get\n  val revealDeadline = SELF.R8[Int].get\n  \n  // State transition validation\n  val validTransition = {\n    val output = OUTPUTS(0)\n    val nextState = output.R4[Int].get\n    val sameScript = output.propositionBytes == SELF.propositionBytes\n    \n    currentState match {\n      case STATE_INIT => {\n        val validNext = nextState == STATE_COMMITTED\n        val beforeDeadline = HEIGHT < commitmentDeadline\n        val commitment = output.R9[Coll[Byte]].get\n        \n        validNext && beforeDeadline && participant1 && sameScript\n      }\n      case STATE_COMMITTED => {\n        val validNext = nextState == STATE_REVEALED\n        val beforeDeadline = HEIGHT < revealDeadline\n        val validReveal = {\n          val secret = getVar[Coll[Byte]](1).get\n          blake2b256(secret) == SELF.R9[Coll[Byte]].get\n        }\n        \n        validNext && beforeDeadline && participant2 && validReveal && sameScript\n      }\n      case STATE_REVEALED => {\n        val validNext = nextState == STATE_COMPLETED\n        participant1 && sameScript\n      }\n      case _ => false\n    }\n  }\n  \n  // Timeout handling\n  val timeout = {\n    val commitmentTimeout = currentState == STATE_INIT && HEIGHT >= commitmentDeadline\n    val revealTimeout = currentState == STATE_COMMITTED && HEIGHT >= revealDeadline\n    \n    (commitmentTimeout && participant2) || (revealTimeout && participant1)\n  }\n  \n  // Main contract logic\n  validTransition || timeout\n}\n```\n\nThis state machine contract implements:\n1. Multiple state transitions\n2. Participant role management\n3. Deadline enforcement\n4. Commitment-reveal scheme\n5. Timeout handling\n\nKey features:\n- Type-safe state transitions\n- Multiple participant roles\n- Timelock mechanisms\n- Secret revelation handling\n- Fallback timeout conditions",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "state-machine", "multi-participant"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_113",
+      "question": "How do I implement cross-contract communication in ErgoScript?",
+      "answer": "Here's how to implement cross-contract communication in ErgoScript:\n\n```scala\n{\n  // Contract identification\n  val contractNFT = SELF.tokens(0)._1\n  val partnerNFT = SELF.R4[Coll[Byte]].get\n  \n  // Communication protocol\n  val messageId = SELF.R5[Long].get\n  val messageData = SELF.R6[Coll[Byte]].get\n  val senderPK = SELF.R7[SigmaProp].get\n  \n  // Find partner contract box\n  val partnerBox = CONTEXT.dataInputs.find({ (b: Box) =>\n    b.tokens.exists(_._1 == partnerNFT)\n  }).get\n  \n  // Validate communication\n  val validCommunication = {\n    val output = OUTPUTS(0)\n    \n    // Verify NFT preservation\n    val nftPreserved = output.tokens(0)._1 == contractNFT\n    \n    // Verify message sequence\n    val nextMessageId = output.R5[Long].get\n    val validSequence = nextMessageId == messageId + 1\n    \n    // Verify partner acknowledgment\n    val partnerAck = partnerBox.R8[Coll[Byte]].get == blake2b256(messageData)\n    \n    // Verify protocol preservation\n    val protocolPreserved = {\n      output.propositionBytes == SELF.propositionBytes &&\n      output.R4[Coll[Byte]].get == partnerNFT\n    }\n    \n    nftPreserved && validSequence && partnerAck && protocolPreserved\n  }\n  \n  // Main contract logic\n  senderPK && validCommunication\n}\n```\n\nThis cross-contract communication implements:\n1. Contract identification via NFTs\n2. Message sequencing\n3. Partner acknowledgment\n4. Protocol preservation\n5. Data validation\n\nKey features:\n- NFT-based contract identification\n- Message sequence tracking\n- Partner box validation\n- Protocol state preservation\n- Secure message passing",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "expert",
+        "tags": ["ergoscript", "cross-contract", "communication"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_114",
+      "question": "How do I implement a token distribution contract with vesting schedule in ErgoScript?",
+      "answer": "Here's how to implement a token vesting contract in ErgoScript:\n\n```scala\n{\n  // Vesting parameters\n  val tokenId = SELF.tokens(0)._1\n  val vestingSchedule = SELF.R4[Coll[(Int, Long)]].get  // Height -> Amount pairs\n  val beneficiary = SELF.R5[SigmaProp].get\n  val admin = SELF.R6[SigmaProp].get\n  \n  // Calculate vested amount\n  val vestedAmount = {\n    val currentHeight = HEIGHT\n    vestingSchedule.fold(0L, { (acc: Long, schedule: (Int, Long)) =>\n      if (currentHeight >= schedule._1) acc + schedule._2 else acc\n    })\n  }\n  \n  // Track claimed amount\n  val claimedAmount = SELF.R7[Long].get\n  \n  // Validate withdrawal\n  val validWithdrawal = {\n    val output = OUTPUTS(0)\n    val withdrawalAmount = SELF.tokens(0)._2 - output.tokens(0)._2\n    \n    // Verify amount is available\n    val availableAmount = vestedAmount - claimedAmount\n    val validAmount = withdrawalAmount <= availableAmount\n    \n    // Verify recipient\n    val correctRecipient = blake2b256(OUTPUTS(1).propositionBytes) == \n                          blake2b256(beneficiary.propBytes)\n    \n    // Verify state update\n    val validState = {\n      output.propositionBytes == SELF.propositionBytes &&\n      output.R4[Coll[(Int, Long)]].get == vestingSchedule &&\n      output.R5[SigmaProp].get == beneficiary &&\n      output.R6[SigmaProp].get == admin &&\n      output.R7[Long].get == claimedAmount + withdrawalAmount\n    }\n    \n    validAmount && correctRecipient && validState\n  }\n  \n  // Admin functions\n  val validAdmin = {\n    admin && OUTPUTS(0).propositionBytes == SELF.propositionBytes\n  }\n  \n  // Main contract logic\n  (beneficiary && validWithdrawal) || validAdmin\n}\n```\n\nThis vesting contract implements:\n1. Vesting schedule tracking\n2. Amount calculation\n3. Withdrawal validation\n4. State management\n5. Admin functions\n\nKey features:\n- Height-based vesting\n- Withdrawal tracking\n- Amount validation\n- State preservation\n- Admin override capability",
+      "metadata": {
+        "domain": "token_operations",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "vesting", "tokens"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    }
+{
+  "conversations": [
+    {
+      "id": "ergo_116",
+      "question": "How do I implement a time-based auction contract in ErgoScript?",
+      "answer": "Here's how to implement a time-based auction contract in ErgoScript:\n\n```scala\n{\n  // Auction parameters\n  val startTime = SELF.R4[Int].get\n  val endTime = SELF.R5[Int].get\n  val minBid = SELF.R6[Long].get\n  val seller = SELF.R7[SigmaProp].get\n  val auctionToken = SELF.tokens(0)  // Token being auctioned\n  \n  // Current highest bid tracking\n  val currentBid = SELF.value\n  val currentBidder = SELF.R8[SigmaProp].get\n  \n  // Bid placement validation\n  val placeBid = {\n    val output = OUTPUTS(0)\n    val newBid = output.value\n    \n    // Time check\n    val validTiming = HEIGHT >= startTime && HEIGHT < endTime\n    \n    // Bid amount validation\n    val validAmount = {\n      val minIncrease = currentBid * 105L / 100L  // 5% minimum increase\n      newBid >= minIncrease && newBid >= minBid\n    }\n    \n    // State preservation\n    val validState = {\n      output.propositionBytes == SELF.propositionBytes &&\n      output.tokens == SELF.tokens &&\n      output.R4[Int].get == startTime &&\n      output.R5[Int].get == endTime &&\n      output.R6[Long].get == minBid &&\n      output.R7[SigmaProp].get == seller &&\n      output.R8[SigmaProp].get == OUTPUTS(1).propositionBytes\n    }\n    \n    // Return bid to previous bidder\n    val returnPrevBid = {\n      val prevBidderOutput = OUTPUTS(1)\n      prevBidderOutput.value >= currentBid &&\n      blake2b256(prevBidderOutput.propositionBytes) == \n      blake2b256(currentBidder.propBytes)\n    }\n    \n    validTiming && validAmount && validState && returnPrevBid\n  }\n  \n  // Auction completion\n  val completeAuction = {\n    val validTiming = HEIGHT >= endTime\n    \n    // Transfer token to winner\n    val winnerOutput = OUTPUTS(0)\n    val validWinner = {\n      winnerOutput.tokens(0) == auctionToken &&\n      blake2b256(winnerOutput.propositionBytes) == \n      blake2b256(currentBidder.propBytes)\n    }\n    \n    // Transfer payment to seller\n    val sellerOutput = OUTPUTS(1)\n    val validSeller = {\n      sellerOutput.value >= currentBid &&\n      blake2b256(sellerOutput.propositionBytes) == \n      blake2b256(seller.propBytes)\n    }\n    \n    validTiming && validWinner && validSeller\n  }\n  \n  // Auction cancellation (only if no bids)\n  val cancelAuction = {\n    val noBids = currentBid == minBid\n    seller && noBids\n  }\n  \n  // Main contract logic\n  placeBid || completeAuction || cancelAuction\n}\n```\n\nThis auction contract implements:\n1. Time-based auction phases\n2. Minimum bid requirements\n3. Bid increment rules\n4. Winner determination\n5. Seller payment handling\n\nKey features:\n- Automatic bid return\n- Minimum price enforcement\n- Bid increment validation\n- Time window management\n- Cancellation mechanism",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "intermediate",
+        "tags": ["ergoscript", "auction", "time-based"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_117",
+      "question": "How do I implement a staking contract with rewards distribution in ErgoScript?",
+      "answer": "Here's how to implement a staking contract with rewards distribution in ErgoScript:\n\n```scala\n{\n  // Staking parameters\n  val stakingToken = SELF.tokens(0)  // Staking token\n  val rewardToken = SELF.tokens(1)   // Reward token\n  val minStakePeriod = SELF.R4[Int].get\n  val rewardRate = SELF.R5[Long].get     // Rewards per block per token\n  \n  // Staker information\n  val stakerPK = SELF.R6[SigmaProp].get\n  val stakeStart = SELF.R7[Int].get\n  val lastClaim = SELF.R8[Int].get\n  \n  // Calculate rewards\n  val calculateRewards = {\n    val blocksSinceClaim = HEIGHT - lastClaim\n    val rewardAmount = (blocksSinceClaim * rewardRate * stakingToken._2) / 1000000L\n    rewardAmount\n  }\n  \n  // Claim rewards\n  val claimRewards = {\n    val output = OUTPUTS(0)\n    \n    // Verify staking continuation\n    val stakingContinued = {\n      output.propositionBytes == SELF.propositionBytes &&\n      output.tokens(0) == stakingToken &&\n      output.R6[SigmaProp].get == stakerPK &&\n      output.R7[Int].get == stakeStart &&\n      output.R8[Int].get == HEIGHT\n    }\n    \n    // Verify reward distribution\n    val rewardOutput = OUTPUTS(1)\n    val rewardsAmount = calculateRewards\n    val validReward = {\n      rewardOutput.tokens.exists({ token: (Coll[Byte], Long) =>\n        token._1 == rewardToken._1 && token._2 == rewardsAmount\n      }) &&\n      blake2b256(rewardOutput.propositionBytes) == \n      blake2b256(stakerPK.propBytes)\n    }\n    \n    stakingContinued && validReward\n  }\n  \n  // Unstake tokens\n  val unstake = {\n    val stakeTime = HEIGHT - stakeStart\n    val validPeriod = stakeTime >= minStakePeriod\n    \n    // Return staked tokens\n    val returnOutput = OUTPUTS(0)\n    val validReturn = {\n      returnOutput.tokens(0) == stakingToken &&\n      blake2b256(returnOutput.propositionBytes) == \n      blake2b256(stakerPK.propBytes)\n    }\n    \n    // Final rewards\n    val rewardOutput = OUTPUTS(1)\n    val finalRewards = calculateRewards\n    val validRewards = {\n      rewardOutput.tokens.exists({ token: (Coll[Byte], Long) =>\n        token._1 == rewardToken._1 && token._2 == finalRewards\n      }) &&\n      blake2b256(rewardOutput.propositionBytes) == \n      blake2b256(stakerPK.propBytes)\n    }\n    \n    stakerPK && validPeriod && validReturn && validRewards\n  }\n  \n  // Main contract logic\n  claimRewards || unstake\n}\n```\n\nThis staking contract implements:\n1. Token staking mechanism\n2. Time-based rewards calculation\n3. Periodic reward claims\n4. Unstaking process\n5. Minimum stake period\n\nKey features:\n- Per-block reward calculation\n- Stake period tracking\n- Token management\n- Reward distribution\n- Stake period enforcement",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "staking", "rewards"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },
+    {
+      "id": "ergo_118",
+      "question": "How do I implement a voting contract with token-weighted votes in ErgoScript?",
+      "answer": "Here's how to implement a token-weighted voting contract in ErgoScript:\n\n```scala\n{\n  // Voting parameters\n  val votingToken = SELF.tokens(0)   // Governance token\n  val proposalId = SELF.R4[Coll[Byte]].get\n  val startHeight = SELF.R5[Int].get\n  val endHeight = SELF.R6[Int].get\n  val minQuorum = SELF.R7[Long].get  // Minimum votes required\n  \n  // Vote tracking\n  val yesVotes = SELF.R8[Long].get\n  val noVotes = SELF.R9[Long].get\n  \n  // Cast vote\n  val castVote = {\n    val output = OUTPUTS(0)\n    val voterTokens = SELF.tokens(1)  // Voter's tokens locked\n    \n    // Time validation\n    val validTiming = HEIGHT >= startHeight && HEIGHT < endHeight\n    \n    // Vote weight calculation\n    val voteWeight = voterTokens._2\n    \n    // Vote recording\n    val isYesVote = getVar[Boolean](0).get\n    val validVoteCount = {\n      if (isYesVote) {\n        output.R8[Long].get == yesVotes + voteWeight &&\n        output.R9[Long].get == noVotes\n      } else {\n        output.R8[Long].get == yesVotes &&\n        output.R9[Long].get == noVotes + voteWeight\n      }\n    }\n    \n    // State preservation\n    val validState = {\n      output.propositionBytes == SELF.propositionBytes &&\n      output.tokens(0) == votingToken &&\n      output.R4[Coll[Byte]].get == proposalId &&\n      output.R5[Int].get == startHeight &&\n      output.R6[Int].get == endHeight &&\n      output.R7[Long].get == minQuorum\n    }\n    \n    validTiming && validVoteCount && validState\n  }\n  \n  // Finalize vote\n  val finalizeVote = {\n    // Time validation\n    val validTiming = HEIGHT >= endHeight\n    \n    // Quorum check\n    val totalVotes = yesVotes + noVotes\n    val quorumReached = totalVotes >= minQuorum\n    \n    // Result calculation\n    val proposalPassed = yesVotes > noVotes\n    \n    // Result storage\n    val output = OUTPUTS(0)\n    val validResult = {\n      output.R4[Coll[Byte]].get == proposalId &&\n      output.R8[Long].get == yesVotes &&\n      output.R9[Long].get == noVotes\n    }\n    \n    validTiming && quorumReached && validResult\n  }\n  \n  // Main contract logic\n  castVote || finalizeVote\n}\n```\n\nThis voting contract implements:\n1. Token-weighted voting system\n2. Vote period enforcement\n3. Quorum tracking\n4. Vote counting\n5. Result finalization\n\nKey features:\n- Governance token support\n- Time-bounded voting\n- Quorum requirements\n- Vote weight calculation\n- Result verification",
+      "metadata": {
+        "domain": "smart_contracts",
+        "difficulty": "advanced",
+        "tags": ["ergoscript", "voting", "governance"],
+        "source": "original",
+        "language": "en",
+        "contributor": "ergo_dev"
+      }
+    },

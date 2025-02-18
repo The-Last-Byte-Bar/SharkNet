@@ -12,13 +12,14 @@ transformers>=4.48.2
 unsloth>=2025.2.4
 vllm>=0.7.1
 tqdm>=4.65.0
-pillow>=10.0.0  # Required by unsloth
+pillow>=10.0.0
 datasets>=2.18.0
 peft>=0.9.0
 accelerate>=0.28.0
 bitsandbytes>=0.42.0
-trl>=0.7.11  # Required for GRPO training
-wandb>=0.16.0  # For experiment tracking (optional)
+trl>=0.7.11
+wandb>=0.16.0
+gradio>=4.0.0
 
 # Additional utilities
 numpy>=1.24.0
