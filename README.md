@@ -12,7 +12,6 @@ An AI-powered assistant for learning and working with ErgoScript, built using th
 - GRPO (Guided Reward Policy Optimization) training by default
 - User-friendly web interface for model interaction
 - MLflow integration for experiment tracking
-- Containerized environment for training and inference
 
 ## Requirements
 
@@ -20,13 +19,7 @@ An AI-powered assistant for learning and working with ErgoScript, built using th
 - CUDA-capable GPU (tested on NVIDIA RTX 3090)
 - 16GB+ RAM recommended
 
-For Docker deployment:
-- Docker and Docker Compose
-- NVIDIA Container Toolkit
-
 ## Quick Start
-
-### Local Installation
 
 1. Clone the repository:
 ```bash
@@ -34,32 +27,16 @@ git clone https://github.com/yourusername/SharkNet.git
 cd SharkNet
 ```
 
-2. Create a virtual environment (recommended):
+2. Create a conda environment:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+conda create -n pool python=3.8
+conda activate pool
 ```
 
 3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-
-### Using Docker
-
-1. Start the complete environment:
-```bash
-docker compose up -d
-```
-
-This will start:
-- Training service (using GRPO mode)
-- Inference service with web UI
-- MLflow for experiment tracking
-
-2. Access the interfaces:
-- Web UI: http://localhost:7860
-- MLflow: http://localhost:5000
 
 ### Using Standalone Inference
 
@@ -86,19 +63,6 @@ This will start either:
 - `NUM_EPOCHS`: Number of epochs (default: 3)
 - `GRADIENT_ACCUMULATION_STEPS`: Steps for gradient accumulation (default: 4)
 
-### Docker Environment Variables
-You can configure the services by editing `docker-compose.yml` or using environment variables:
-
-```yaml
-services:
-  trainer:
-    environment:
-      - MODEL_NAME=your-model-name
-      - TRAINING_MODE=grpo
-      - BATCH_SIZE=8
-      - NUM_EPOCHS=5
-```
-
 ## Project Structure
 
 ```
@@ -106,9 +70,6 @@ SharkNet/
 ├── pipeline/           # Training pipeline components
 ├── prototype/         # Training data and prototypes
 ├── webui/            # Web interface components
-├── docker-compose.yml # Docker configuration
-├── Dockerfile        # Training container definition
-├── Dockerfile.inference # Inference container definition
 ├── inference_standalone.py # Standalone inference script
 └── README.md        # This file
 ```

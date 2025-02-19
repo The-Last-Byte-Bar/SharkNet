@@ -34,6 +34,8 @@ ENV/
 .project
 .pydevproject
 .settings/
+.cursor/
+.virtual_documents/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -58,6 +60,7 @@ wandb/
 *.log
 test_results/
 interactions/
+unsloth_compiled_cache/
 
 # Docker
 .docker/
