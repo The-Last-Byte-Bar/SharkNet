@@ -12,40 +12,36 @@ def setup_directories():
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
     os.makedirs(config.MODEL_SAVE_DIR, exist_ok=True)
 
-def main(training_mode="standard"):
-    """Main entry point for the training pipeline.
-    
-    Args:
-        training_mode (str): Either "standard" or "grpo" to select training method
-    """
-    # Set up logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(os.path.join('output', 'training.log'))
-        ]
-    )
-    
-    # Create necessary directories
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="SharkNet Training Interface")
+    parser.add_argument('--mode', choices=['standard', 'grpo'], default='standard', help='Training mode to run')
+    parser.add_argument('--scale', choices=['small', 'medium', 'large', 'full'], default='full', help='Training scale for GRPO mode')
+    args = parser.parse_args()
+
+    # Set up directories
     setup_directories()
-    
-    # Train model using selected method
-    if training_mode == "grpo":
-        logging.info("Starting GRPO training...")
+
+    if args.mode == 'standard':
+        print("Running standard training mode")
+        standard_train_model()
+    elif args.mode == 'grpo':
+        from pipeline import config
+        if args.scale == 'small':
+            config.NUM_EPOCHS = 1
+            config.BATCH_SIZE = 2
+            print("Running a small GRPO training run: 1 epoch, batch size 2")
+        elif args.scale == 'medium':
+            config.NUM_EPOCHS = 2
+            config.BATCH_SIZE = 4
+            print("Running a medium GRPO training run: 2 epochs, batch size 4")
+        elif args.scale == 'large':
+            config.NUM_EPOCHS = 3
+            config.BATCH_SIZE = 8
+            print("Running a large GRPO training run: 3 epochs, batch size 8")
+        else:
+            print("Running full GRPO training run with default settings")
         grpo_train()
-    else:
-        logging.info("Starting standard training...")
-        # Create dataloaders and model for standard training
-        train_loader, val_loader = create_dataloaders()
-        model, tokenizer = create_model()
-        standard_train_model(model, tokenizer, train_loader, val_loader)
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='Train the model using specified method')
-    parser.add_argument('--mode', type=str, default='standard', choices=['standard', 'grpo'],
-                      help='Training mode: standard or grpo (default: standard)')
-    args = parser.parse_args()
-    main(args.mode) 
+    main() 

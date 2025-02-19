@@ -122,3 +122,77 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Built using the Llama model from Meta
 - Optimized with Unsloth for faster training and inference
 - Training data contributed by the Ergo community
+
+## Training
+
+To train the model, you can use the training pipeline provided in the `pipeline/` directory. The training pipeline supports two modes: **standard** and **GRPO**.
+
+### Standard Training
+
+Run standard training with:
+
+```bash
+python pipeline/main.py --mode standard
+```
+
+This will run the default training procedure without any configuration overrides.
+
+### GRPO Training
+
+The GRPO training mode supports different training scales by using the `--scale` flag. Available scales are: `small`, `medium`, `large`, or `full` (default).
+
+For example:
+
+- To run a **small GRPO training run** (1 epoch, batch size 2):
+
+  ```bash
+  python pipeline/main.py --mode grpo --scale small
+  ```
+
+- To run a **medium GRPO training run** (2 epochs, batch size 4):
+
+  ```bash
+  python pipeline/main.py --mode grpo --scale medium
+  ```
+
+- To run a **large GRPO training run** (3 epochs, batch size 8):
+
+  ```bash
+  python pipeline/main.py --mode grpo --scale large
+  ```
+
+- To run a **full GRPO training run** with the default settings:
+
+  ```bash
+  python pipeline/main.py --mode grpo --scale full
+  ```
+
+These options help you quickly test different training scales during development.
+
+### Requirements
+
+- Python 3.8+
+- CUDA-capable GPU (if using GPU acceleration)
+- Conda environment named `pool` (as shown below)
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/yourusername/SharkNet.git
+   cd SharkNet
+   ```
+
+2. Create and activate the conda environment:
+
+   ```bash
+   conda create -n pool python=3.8
+   conda activate pool
+   ```
+
+3. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+Now you're ready to train your models using either standard or GRPO training modes.

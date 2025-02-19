@@ -102,3 +102,80 @@ config.local.json
 !.gitkeep
 !example_data/
 !prototype/RLdata_unix.txt
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+
+# PyInstaller
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage*
+.cache
+
+# Translations
+*.mo
+
+# Django stuff
+*.log
+local_settings.py
+
+# Flask stuff
+instance/
+.webassets-cache
+
+# Scrapy stuff
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+
+# Conda metadata
+conda-meta/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Output directories and logs
+output/
+evaluation_results/
+mlruns/
+runs/
+dry_run_debug.log
+pipeline_debug.log
+
+# Model checkpoints and temporary files
+saved_models/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Compiled UnsLoth Cache
+unsloth_compiled_cache/

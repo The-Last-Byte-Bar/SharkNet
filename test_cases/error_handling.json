@@ -1,0 +1,13 @@
+[
+  {
+    "id": "test_002",
+    "input_text": "Explain how to handle errors in ErgoScript.",
+    "expected_output": null,
+    "difficulty": "medium",
+    "tags": [
+      "explanation",
+      "errors"
+    ],
+    "metadata": {}
+  }
+]

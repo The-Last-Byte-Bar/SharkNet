@@ -162,4 +162,30 @@ def train():
     model.save_lora(save_path)
     print(f"Saved GRPO trained model to {save_path}")
     
-    print("GRPO Training completed!") 
+    print("GRPO Training completed!")
+
+if __name__ == "__main__":
+    import argparse
+    from pipeline import config
+    parser = argparse.ArgumentParser(description="GRPO Trainer")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--small', action='store_true', help='Run a small training run with fewer epochs and smaller batch size')
+    group.add_argument('--medium', action='store_true', help='Run a medium training run with moderate epochs and batch size')
+    group.add_argument('--large', action='store_true', help='Run a large training run with more epochs and larger batch size')
+    args = parser.parse_args()
+    if args.small:
+        config.NUM_EPOCHS = 1
+        config.BATCH_SIZE = 2
+        print("Running a small GRPO training run: 1 epoch, batch size 2")
+    elif args.medium:
+        config.NUM_EPOCHS = 2
+        config.BATCH_SIZE = 4
+        print("Running a medium GRPO training run: 2 epochs, batch size 4")
+    elif args.large:
+        config.NUM_EPOCHS = 3
+        config.BATCH_SIZE = 8
+        print("Running a large GRPO training run: 3 epochs, batch size 8")
+    else:
+        print("Running full GRPO training run")
+    
+    train() 

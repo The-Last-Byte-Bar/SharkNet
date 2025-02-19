@@ -1,10 +1,11 @@
-from unsloth import FastLanguageModel
+from typing import Tuple, Any
 import torch
-from torch.optim import AdamW
 from transformers import get_linear_schedule_with_warmup
+from torch.optim import AdamW
+from unsloth import FastLanguageModel
 from pipeline import config
 
-def create_model():
+def create_model() -> Tuple[torch.nn.Module, Any]:
     """Create and configure the model."""
     # Initialize the model
     model, tokenizer = FastLanguageModel.from_pretrained(

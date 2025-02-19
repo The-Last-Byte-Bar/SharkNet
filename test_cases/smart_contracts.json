@@ -1,0 +1,13 @@
+[
+  {
+    "id": "test_001",
+    "input_text": "Write a simple ErgoScript contract that implements a basic token.",
+    "expected_output": null,
+    "difficulty": "easy",
+    "tags": [
+      "token",
+      "basic"
+    ],
+    "metadata": {}
+  }
+]
