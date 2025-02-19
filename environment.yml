@@ -1,0 +1,26 @@
+name: pool
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8
+  - transformers
+  - datasets
+  - numpy
+  - pandas
+  - scikit-learn
+  - tqdm
+  - pyyaml
+  - psutil
+  - gputil
+  - pip
+  - pip:
+    - unsloth
+    - trl
+    - peft 

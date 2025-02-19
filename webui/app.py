@@ -5,23 +5,30 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from datetime import datetime
 import shutil
+from peft import PeftModel, PeftConfig
+from unsloth import FastLanguageModel
 
 class ModelManager:
     def __init__(self):
-        self.models_dir = "saved_models"
+        self.models_dir = "checkpoints"
         self.loaded_model = None
         self.loaded_tokenizer = None
         self.current_model_name = None
         
     def list_models(self):
-        """List all available models."""
+        """List all available models recursively."""
         if not os.path.exists(self.models_dir):
             return []
         
         models = []
-        for item in os.listdir(self.models_dir):
-            if os.path.isdir(os.path.join(self.models_dir, item)):
-                models.append(item)
+        for root, dirs, files in os.walk(self.models_dir):
+            # Check if this directory contains model files
+            if any(f in files for f in ["config.json", "adapter_config.json", "pytorch_model.bin", "adapter_model.safetensors"]):
+                # Get relative path from models_dir
+                rel_path = os.path.relpath(root, self.models_dir)
+                if rel_path != ".":  # Skip the root directory itself
+                    models.append(rel_path)
+        
         return sorted(models, reverse=True)
     
     def load_model(self, model_name):
@@ -37,35 +44,93 @@ class ModelManager:
             del self.loaded_tokenizer
             torch.cuda.empty_cache()
         
-        # Load new model
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            device_map="auto",
-            torch_dtype=torch.float16,
-            max_memory={0: os.getenv("MAX_MEMORY", "16GB")}
-        )
-        
-        self.loaded_model = model
-        self.loaded_tokenizer = tokenizer
-        self.current_model_name = model_name
-        
-        return model, tokenizer
+        try:
+            # First try to load as a LoRA model
+            config_path = os.path.join(model_path, "config.json")
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                
+                if config.get("peft_type") == "LORA":
+                    # Load base model
+                    base_model_name = config.get("base_model_name_or_path")
+                    base_model, tokenizer = FastLanguageModel.from_pretrained(
+                        model_name=base_model_name,
+                        max_seq_length=config.get("max_seq_length", 2048),
+                        load_in_4bit=True,
+                        device_map="auto"
+                    )
+                    
+                    # Load LoRA adapter
+                    model = PeftModel.from_pretrained(
+                        base_model,
+                        model_path,
+                        torch_dtype=torch.float16,
+                        device_map="auto"
+                    )
+                    
+                    # Prepare model for inference
+                    model = FastLanguageModel.for_inference(model)
+                else:
+                    # Load as regular model
+                    tokenizer = AutoTokenizer.from_pretrained(model_path)
+                    model = AutoModelForCausalLM.from_pretrained(
+                        model_path,
+                        device_map="auto",
+                        torch_dtype=torch.float16,
+                        max_memory={0: os.getenv("MAX_MEMORY", "16GB")}
+                    )
+            else:
+                # Load as regular model
+                tokenizer = AutoTokenizer.from_pretrained(model_path)
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_path,
+                    device_map="auto",
+                    torch_dtype=torch.float16,
+                    max_memory={0: os.getenv("MAX_MEMORY", "16GB")}
+                )
+            
+            self.loaded_model = model
+            self.loaded_tokenizer = tokenizer
+            self.current_model_name = model_name
+            
+            return model, tokenizer
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to load model: {str(e)}")
 
 def generate_script(model, tokenizer, prompt, max_length=512, temperature=0.7, top_p=0.9):
     """Generate ErgoScript based on the prompt."""
+    # Add system prompt for LoRA models
+    if isinstance(model, PeftModel):
+        formatted_prompt = [
+            {"role": "system", "content": "Use XML tags for responses:\n<reasoning>...</reasoning>\n<answer>...</answer>"},
+            {"role": "user", "content": prompt}
+        ]
+        # Convert to string format
+        prompt = "\n\n".join([msg["content"] for msg in formatted_prompt])
+    
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     
-    outputs = model.generate(
-        **inputs,
-        max_length=max_length,
-        temperature=temperature,
-        top_p=top_p,
-        do_sample=True,
-        pad_token_id=tokenizer.eos_token_id,
-        repetition_penalty=1.1
-    )
+    # Set generation parameters based on model type
+    generation_kwargs = {
+        "max_length": max_length,
+        "temperature": temperature,
+        "top_p": top_p,
+        "do_sample": True,
+        "pad_token_id": tokenizer.eos_token_id,
+        "repetition_penalty": 1.1
+    }
     
+    # Add specific parameters for Unsloth models
+    if hasattr(model, "unsloth_model"):
+        generation_kwargs.update({
+            "use_cache": True,
+            "max_new_tokens": max_length - inputs["input_ids"].shape[1],  # Adjust for input length
+            "early_stopping": True
+        })
+    
+    outputs = model.generate(**inputs, **generation_kwargs)
     return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
 def save_interaction(prompt, response, model_name, save_dir="output/interactions"):
@@ -198,13 +263,40 @@ def create_ui():
             if not model_name:
                 return {"Status": "No model selected"}
             
-            model_path = os.path.join("saved_models", model_name)
+            model_path = os.path.join("checkpoints", model_name)
+            metrics_path = os.path.join("artifacts/latest", f"{model_name}_metrics.json")
+            config_path = os.path.join(model_path, "config.json")
+            
             info = {
                 "Status": "Model selected",
                 "Name": model_name,
                 "Path": model_path,
                 "Last Modified": datetime.fromtimestamp(os.path.getmtime(model_path)).strftime("%Y-%m-%d %H:%M:%S")
             }
+            
+            # Add model configuration if available
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    if config.get("peft_type") == "LORA":
+                        info["Model Type"] = "LoRA-adapted LLM"
+                        info["Base Model"] = config.get("base_model_name_or_path", "Unknown")
+                        info["Max Sequence Length"] = config.get("max_seq_length", "Unknown")
+                    else:
+                        info["Model Type"] = config.get("model_type", "Unknown")
+            
+            # Add metrics if available
+            if os.path.exists(metrics_path):
+                with open(metrics_path, 'r') as f:
+                    metrics = json.load(f)
+                    info["Metrics"] = {
+                        "Format Score": f"{metrics['format_metrics']['format_score']:.2%}",
+                        "Average Generation Time": f"{metrics['performance_metrics']['average_generation_time']:.2f}s",
+                        "Memory Usage": f"{metrics['performance_metrics']['average_memory_usage_mb']:.0f}MB"
+                    }
+                    if metrics['performance_metrics'].get('average_gpu_memory_mb'):
+                        info["Metrics"]["GPU Memory"] = f"{metrics['performance_metrics']['average_gpu_memory_mb']:.0f}MB"
+            
             return info
         
         def on_clear():

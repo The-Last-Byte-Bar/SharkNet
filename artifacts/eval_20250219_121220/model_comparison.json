@@ -1,0 +1,53 @@
+{
+  "models": [
+    "checkpoint-1",
+    "checkpoint-2",
+    "checkpoint-3"
+  ],
+  "format_comparison": {
+    "format_score": {
+      "checkpoint-1": 0.0,
+      "checkpoint-2": 0.0,
+      "checkpoint-3": 0.0
+    },
+    "proper_format_rate": {
+      "checkpoint-1": 0.0,
+      "checkpoint-2": 0.0,
+      "checkpoint-3": 0.0
+    }
+  },
+  "content_comparison": {
+    "average_similarity": {
+      "checkpoint-1": 0.0,
+      "checkpoint-2": 0.0,
+      "checkpoint-3": 0.0
+    },
+    "average_length_ratio": {
+      "checkpoint-1": 0.0,
+      "checkpoint-2": 0.0,
+      "checkpoint-3": 0.0
+    },
+    "reasoning_rate": {
+      "checkpoint-1": 0.0,
+      "checkpoint-2": 0.0,
+      "checkpoint-3": 0.0
+    }
+  },
+  "performance_comparison": {
+    "average_generation_time": {
+      "checkpoint-1": 10.165476125616774,
+      "checkpoint-2": 10.044761076274671,
+      "checkpoint-3": 10.250231548108554
+    },
+    "average_memory_usage_mb": {
+      "checkpoint-1": 5708.454230057566,
+      "checkpoint-2": 11290.180792557565,
+      "checkpoint-3": 15630.1484375
+    },
+    "average_gpu_memory_mb": {
+      "checkpoint-1": 0.0,
+      "checkpoint-2": 0.0,
+      "checkpoint-3": 0.0
+    }
+  }
+}

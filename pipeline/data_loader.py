@@ -1,9 +1,14 @@
 import json
 from typing import Dict, List, Tuple
 import random
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 import re
 from pipeline import config
+import torch
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class ErgoDataset(Dataset):
     def __init__(self, conversations: List[Dict]):
@@ -22,12 +27,53 @@ class ErgoDataset(Dataset):
         # Format for model input
         formatted_text = f"### Instruction:\n{instruction}\n\n### Response:\n{response}"
         
+        # Log sequence length
+        logger.info(f"Sequence length: {len(formatted_text.split())}")
+        
         return {
             "text": formatted_text,
             "instruction": instruction,
             "response": response,
             "metadata": conv.get('metadata', {})
         }
+
+class ConversationDataset(Dataset):
+    def __init__(self, conversations):
+        self.conversations = conversations
+        self._validate_and_truncate()
+    
+    def _validate_and_truncate(self):
+        """Validate and truncate conversations to fit within max length."""
+        max_words = config.MAX_SEQ_LENGTH // 2  # Rough estimate of tokens to words
+        truncated = 0
+        
+        for i, conv in enumerate(self.conversations):
+            words = len(conv.split())
+            if words > max_words:
+                # Truncate to max length while preserving complete sentences
+                sentences = conv.split('.')
+                truncated_conv = []
+                word_count = 0
+                
+                for sent in sentences:
+                    sent_words = len(sent.split())
+                    if word_count + sent_words <= max_words:
+                        truncated_conv.append(sent)
+                        word_count += sent_words
+                    else:
+                        break
+                
+                self.conversations[i] = '. '.join(truncated_conv) + '.'
+                truncated += 1
+        
+        if truncated > 0:
+            logger.info(f"Truncated {truncated} conversations to fit within max length")
+    
+    def __len__(self):
+        return len(self.conversations)
+    
+    def __getitem__(self, idx):
+        return {"text": self.conversations[idx]}
 
 def clean_json_string(content: str) -> str:
     """Clean and prepare JSON string for parsing."""
@@ -77,26 +123,55 @@ def split_data(conversations: List[Dict], train_ratio: float = 0.8) -> Tuple[Lis
     print(f"Split data into {len(train_convs)} training and {len(val_convs)} validation conversations")
     return train_convs, val_convs
 
-def create_dataloaders(batch_size: int = config.BATCH_SIZE) -> Tuple[DataLoader, DataLoader]:
-    """Create training and validation dataloaders."""
-    # Load and split data
-    conversations = load_data(config.DATA_PATH)
-    train_convs, val_convs = split_data(conversations, config.TRAIN_TEST_SPLIT)
+def load_conversations(file_path="prototype/RLdata_unix.txt"):
+    """Load conversations from file."""
+    conversations = []
+    with open(file_path, 'r') as f:
+        conversations = [line.strip() for line in f if line.strip()]
     
-    # Create datasets
-    train_dataset = ErgoDataset(train_convs)
-    val_dataset = ErgoDataset(val_convs)
+    print(f"Loaded {len(conversations)} conversations from {file_path}")
+    return conversations
+
+def create_dataloaders():
+    """Create train, validation, and test dataloaders."""
+    # Load data
+    conversations = load_conversations()
+    
+    # Create dataset
+    dataset = ConversationDataset(conversations)
+    
+    # Calculate split sizes
+    total_size = len(dataset)
+    train_size = int(0.7 * total_size)
+    val_size = int(0.15 * total_size)
+    test_size = total_size - train_size - val_size
+    
+    # Split dataset
+    train_dataset, val_dataset, test_dataset = random_split(
+        dataset, 
+        [train_size, val_size, test_size],
+        generator=torch.Generator().manual_seed(42)
+    )
+    
+    print(f"Split data into {len(train_dataset)} training, {len(val_dataset)} validation, and {len(test_dataset)} test conversations")
     
     # Create dataloaders
     train_loader = DataLoader(
         train_dataset,
-        batch_size=batch_size,
+        batch_size=config.BATCH_SIZE,
         shuffle=True
     )
+    
     val_loader = DataLoader(
         val_dataset,
-        batch_size=batch_size,
+        batch_size=config.BATCH_SIZE,
         shuffle=False
     )
     
-    return train_loader, val_loader 
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=1,  # Process test data one at a time
+        shuffle=False
+    )
+    
+    return train_loader, val_loader, test_loader 

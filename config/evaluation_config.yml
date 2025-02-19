@@ -1,0 +1,55 @@
+# Evaluation Configuration
+
+# Metrics to calculate
+metrics:
+  format_validation:
+    enabled: true
+    required_tags:
+      - reasoning
+      - answer
+    proper_nesting: true
+    
+  content_quality:
+    enabled: true
+    similarity_threshold: 0.7
+    min_length_ratio: 0.5
+    require_reasoning: true
+    
+  performance:
+    enabled: true
+    track_gpu: true
+    track_memory: true
+    track_time: true
+    max_memory_mb: 4096
+    max_gpu_memory_mb: 8192
+    timeout_seconds: 30
+
+# Model configurations
+models:
+  - name: "base_model"
+    path: "checkpoints/base_model"
+    type: "llama2"
+    
+  - name: "grpo_model"
+    path: "checkpoints/grpo_model"
+    type: "llama2"
+
+# Test case configuration
+test_cases:
+  input_file: "test_cases.json"
+  reference_file: "reference_outputs.json"
+  batch_size: 8
+  max_concurrent: 4
+
+# Output configuration
+output:
+  results_dir: "evaluation_results"
+  save_individual_outputs: true
+  generate_plots: true
+  report_format: "markdown"
+  
+# Logging configuration
+logging:
+  level: "INFO"
+  file: "evaluation.log"
+  console: true 

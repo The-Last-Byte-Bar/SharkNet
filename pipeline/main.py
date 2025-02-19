@@ -1,51 +1,73 @@
 import os
-import logging
 import torch
-from pipeline.trainer import train_model as standard_train_model
-from pipeline.grpo_trainer import train as grpo_train
-from pipeline.data_loader import create_dataloaders
-from pipeline.model import create_model
+import argparse
 from pipeline import config
+from pipeline.trainer import train
+from pipeline.distributed_utils import DistributedTrainer
+import warnings
+warnings.filterwarnings("ignore")
 
-def setup_directories():
-    """Create necessary directories if they don't exist."""
+def setup_environment():
+    """Setup training environment and directories."""
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
     os.makedirs(config.MODEL_SAVE_DIR, exist_ok=True)
+    
+    # Set PyTorch settings for optimal performance
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
-def main(training_mode="standard"):
-    """Main entry point for the training pipeline.
+def main():
+    parser = argparse.ArgumentParser(description='Train the model')
+    parser.add_argument('--run_name', type=str, default='default_run',
+                       help='Name for this training run')
+    parser.add_argument('--batch_size', type=int, default=None,
+                       help='Override default batch size')
+    parser.add_argument('--num_epochs', type=int, default=None,
+                       help='Override default number of epochs')
+    parser.add_argument('--learning_rate', type=float, default=None,
+                       help='Override default learning rate')
     
-    Args:
-        training_mode (str): Either "standard" or "grpo" to select training method
-    """
-    # Set up logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(os.path.join('output', 'training.log'))
-        ]
-    )
+    args = parser.parse_args()
     
-    # Create necessary directories
-    setup_directories()
+    # Override config values if provided
+    if args.batch_size is not None:
+        config.BATCH_SIZE = args.batch_size
+    if args.num_epochs is not None:
+        config.NUM_EPOCHS = args.num_epochs
+    if args.learning_rate is not None:
+        config.LEARNING_RATE = args.learning_rate
     
-    # Train model using selected method
-    if training_mode == "grpo":
-        logging.info("Starting GRPO training...")
-        grpo_train()
-    else:
-        logging.info("Starting standard training...")
-        # Create dataloaders and model for standard training
-        train_loader, val_loader = create_dataloaders()
-        model, tokenizer = create_model()
-        standard_train_model(model, tokenizer, train_loader, val_loader)
+    # Setup environment
+    setup_environment()
+    
+    # Create run directory
+    run_dir = os.path.join(config.OUTPUT_DIR, args.run_name)
+    os.makedirs(run_dir, exist_ok=True)
+    
+    # Initialize distributed training
+    with DistributedTrainer() as trainer:
+        if trainer.is_main_process:
+            print(f"Starting training run: {args.run_name}")
+            print(f"Distributed training: {trainer.is_distributed}")
+            if trainer.is_distributed:
+                print(f"World size: {trainer.world_size}")
+            print(f"Training configuration:")
+            print(f"  Batch size: {config.BATCH_SIZE}")
+            print(f"  Number of epochs: {config.NUM_EPOCHS}")
+            print(f"  Learning rate: {config.LEARNING_RATE}")
+        
+        try:
+            # Run training
+            train(run_dir, trainer)
+        except KeyboardInterrupt:
+            print("\nTraining interrupted by user")
+        except Exception as e:
+            print(f"Error during training: {str(e)}")
+            raise
+        finally:
+            if trainer.is_main_process:
+                print("Training completed or interrupted. Cleaning up...")
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='Train the model using specified method')
-    parser.add_argument('--mode', type=str, default='standard', choices=['standard', 'grpo'],
-                      help='Training mode: standard or grpo (default: standard)')
-    args = parser.parse_args()
-    main(args.mode) 
+    main() 

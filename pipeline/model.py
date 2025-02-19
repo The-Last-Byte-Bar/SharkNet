@@ -1,21 +1,32 @@
 from unsloth import FastLanguageModel
 import torch
 from torch.optim import AdamW
-from transformers import get_linear_schedule_with_warmup
+from transformers import get_linear_schedule_with_warmup, AutoModelForCausalLM, AutoTokenizer
 from pipeline import config
 
 def create_model():
     """Create and configure the model."""
-    # Initialize the model
+    # Initialize base model with unsloth
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=config.MODEL_NAME,
         max_seq_length=config.MAX_SEQ_LENGTH,
-        dtype=torch.bfloat16,
         load_in_4bit=True,
+        device_map="auto",
+        max_memory={0: "16GiB"},
     )
     
-    # Move model to device
-    model = model.to(config.DEVICE)
+    # Add LoRA adapters
+    model = FastLanguageModel.get_peft_model(
+        model,
+        r=32,  # LoRA rank
+        target_modules=[
+            "q_proj", "k_proj", "v_proj", "o_proj",
+            "gate_proj", "up_proj", "down_proj",
+        ],
+        lora_alpha=32,
+        use_gradient_checkpointing="unsloth",
+        random_state=3407,
+    )
     
     return model, tokenizer
 

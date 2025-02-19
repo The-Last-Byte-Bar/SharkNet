@@ -1,0 +1,19 @@
+{
+  "model_name": "checkpoint-1",
+  "timestamp": "2025-02-19T12:15:39.000335",
+  "total_samples": 19,
+  "format_metrics": {
+    "format_score": 0.0,
+    "proper_format_rate": 0.0
+  },
+  "content_metrics": {
+    "average_similarity": 0.0,
+    "average_length_ratio": 0.0,
+    "reasoning_rate": 0.0
+  },
+  "performance_metrics": {
+    "average_generation_time": 10.165476125616774,
+    "average_memory_usage_mb": 5708.454230057566,
+    "average_gpu_memory_mb": 0.0
+  }
+}
