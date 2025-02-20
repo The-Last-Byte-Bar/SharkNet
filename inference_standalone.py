@@ -4,6 +4,7 @@ import shutil
 from datetime import datetime
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaForCausalLM, LlamaTokenizer
+import socket
 
 class ModelManager:
     """Model manager for actual inference."""
@@ -69,15 +70,15 @@ class ModelManager:
             return self.loaded_model, self.loaded_tokenizer
             
         model_path = os.path.join(self.models_dir, model_name)
-        
+            
         # Free up memory if another model was loaded
         if self.loaded_model is not None:
             del self.loaded_model
             del self.loaded_tokenizer
             torch.cuda.empty_cache()
-        
+            
         print(f"Loading model from {model_path}...")
-        
+            
         try:
             # Ensure tokenizer files exist
             self.ensure_tokenizer_files(model_path)
@@ -93,6 +94,18 @@ class ModelManager:
                 torch_dtype=torch.float16,
                 max_memory={0: os.getenv("MAX_MEMORY", "16GB")}
             )
+
+            # Patch the model: set max_seq_length if not present
+            if not hasattr(model, 'max_seq_length'):
+                model.max_seq_length = getattr(model.config, 'max_position_embeddings', 512)
+                print(f"ModelManager: Patched model.max_seq_length to {model.max_seq_length}")
+            
+            # Ensure the model is prepared for inference using Unsloth
+            from unsloth import FastLanguageModel
+            model = FastLanguageModel.for_inference(model)
+            if not hasattr(model, '_inference_ready'):
+                print("DEBUG: ModelManager.load_model - _inference_ready attribute missing after for_inference, patching manually.")
+                model._inference_ready = True
             
             self.loaded_model = model
             self.loaded_tokenizer = tokenizer
@@ -103,7 +116,7 @@ class ModelManager:
             
         except Exception as e:
             print(f"Error loading model: {str(e)}")
-            raise
+            raise e
 
 def generate_response(model, tokenizer, prompt, max_length=512, temperature=0.7, top_p=0.9):
     """Generate response using the actual model."""
@@ -116,6 +129,11 @@ Response:"""
     
     # Tokenize and generate
     inputs = tokenizer(full_prompt, return_tensors="pt").to(model.device)
+    
+    if hasattr(model, '_inference_ready'):
+        print("DEBUG: In generate_response, model _inference_ready flag:", model._inference_ready)
+    else:
+        print("DEBUG: In generate_response, model NOT inference ready, _inference_ready attribute missing")
     
     outputs = model.generate(
         **inputs,
@@ -343,6 +361,11 @@ def create_ui():
                 
                 model, tokenizer = model_manager.load_model(model_name)
                 
+                # Patch the model in case 'max_seq_length' is missing
+                if not hasattr(model, 'max_seq_length'):
+                    model.max_seq_length = getattr(model.config, 'max_position_embeddings', 512)
+                    print(f"Patched model.max_seq_length to {model.max_seq_length} in on_submit")
+                
                 response = generate_response(
                     model,
                     tokenizer,
@@ -390,10 +413,84 @@ def create_ui():
     
     return interface
 
-if __name__ == "__main__":
-    if GRADIO_AVAILABLE:
-        print("Starting Gradio interface...")
-        interface = create_ui()
-        interface.launch(server_name="0.0.0.0", server_port=7860)
+# New helper functions for loading and running test cases
+import os
+import json
+
+# Function to load test cases from a JSON file
+
+def load_test_cases():
+    test_cases_file = os.path.join('prototype', 'test_cases.json')
+    with open(test_cases_file, 'r', encoding='utf-8') as f:
+        test_cases = json.load(f)
+    return test_cases
+
+
+# Function to run inference on each test case and print the responses
+
+def run_inference_on_test_cases(model, tokenizer, test_cases):
+    # Ensure the model is set to evaluation mode
+    model.eval()
+    device = next(model.parameters()).device
+    
+    for difficulty, questions in test_cases.items():
+        print(f"\n--- Difficulty: {difficulty.upper()} ---")
+        for idx, question in enumerate(questions, start=1):
+            print(f"\nTest {idx}: {question}")
+            # Prepare input for the model
+            inputs = tokenizer(question, return_tensors='pt', truncation=True, max_length=512).to(device)
+            with torch.no_grad():
+                outputs = model.generate(**inputs, max_length=512)
+            response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            print(f"Response: {response}")
+
+def get_free_port(start_port=7860, end_port=7870):
+    """Find a free port in the given range."""
+    for port in range(start_port, end_port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                return port
+            except OSError:
+                continue
+    raise OSError(f"No free port found in range {start_port}-{end_port - 1}")
+
+# Updated __main__ block to integrate test cases into offline inference
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description="Inference Standalone CLI")
+    parser.add_argument('--run_mode', choices=['test', 'ui'], default='test', help='Choose run mode: "test" to run offline test cases; "ui" to launch the Gradio UI interface')
+    args = parser.parse_args()
+    
+    from pipeline.model import create_model
+    # Create the model and tokenizer
+    model, tokenizer = create_model()
+    
+    # Patch the model for inference using Unsloth
+    from unsloth import FastLanguageModel
+    model = FastLanguageModel.for_inference(model)
+    print("DEBUG: After for_inference call. Model type:", type(model))
+    if hasattr(model, '_inference_ready'):
+        print("DEBUG: Model is inference ready, _inference_ready flag:", model._inference_ready)
     else:
-        create_cli_interface() 
+        print("DEBUG: Model is NOT inference ready, missing _inference_ready attribute")
+    
+    # Patch the model: set max_seq_length if not present
+    if not hasattr(model, 'max_seq_length'):
+        model.max_seq_length = getattr(model.config, 'max_position_embeddings', 512)
+        print(f"Patched model.max_seq_length to {model.max_seq_length}")
+    
+    if args.run_mode == 'test':
+        # Load test cases from the JSON file and run inference
+        test_cases = load_test_cases()
+        run_inference_on_test_cases(model, tokenizer, test_cases)
+    elif args.run_mode == 'ui':
+        if GRADIO_AVAILABLE:
+            free_port = get_free_port()
+            print(f"Starting Gradio interface on port {free_port}...")
+            interface = create_ui()
+            interface.launch(server_name="0.0.0.0", server_port=free_port)
+        else:
+            print("Gradio is not installed. Falling back to CLI interface...")
+            create_cli_interface() 

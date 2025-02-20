@@ -1,0 +1,23 @@
+{
+  "easy": [
+    "Define what a Smart Contract is in the context of the Ergo blockchain.",
+    "What is ErgoScript, and why is it used for Smart Contracts on Ergo?",
+    "Provide a simple example of an ErgoScript contract that locks funds to a specific address.",
+    "Explain the concept of 'boxes' in the Ergo blockchain and their role in Smart Contracts.",
+    "How does the Ergo blockchain ensure the security of Smart Contracts?"
+  ],
+  "moderate": [
+    "Write an ErgoScript contract that requires two out of three signatures to spend funds.",
+    "Explain how to use conditional statements in ErgoScript to create a time-locked contract, where funds can only be spent after a certain date.",
+    "How are errors or exceptions handled in ErgoScript contracts? Provide an example.",
+    "What are the steps involved in deploying a Smart Contract on the Ergo testnet and then on the mainnet?",
+    "Describe the process of interacting with a Smart Contract on the Ergo blockchain using the command line or a wallet, including how to call functions and view contract state."
+  ],
+  "hard": [
+    "Implement a basic EIP-10 token contract in ErgoScript, including functions for minting, transferring, and checking balances.",
+    "Write a Smart Contract that uses an oracle to trigger a specific action when a certain condition based on external data is met.",
+    "Create a contract that manages a simple DAO, allowing token holders to vote on proposals and execute actions based on voting results.",
+    "Discuss strategies for optimizing transaction fees in Ergo Smart Contracts, considering factors like script complexity and data size.",
+    "Implement a contract that enables the creation, transfer, and management of non-fungible tokens (NFTs) on the Ergo blockchain, including features for minting and ownership verification."
+  ]
+}

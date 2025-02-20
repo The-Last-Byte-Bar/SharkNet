@@ -4,16 +4,40 @@ from transformers import get_linear_schedule_with_warmup
 from torch.optim import AdamW
 from unsloth import FastLanguageModel
 from pipeline import config
+import os
 
 def create_model() -> Tuple[torch.nn.Module, Any]:
     """Create and configure the model."""
-    # Initialize the model
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=config.MODEL_NAME,
-        max_seq_length=config.MAX_SEQ_LENGTH,
-        dtype=torch.bfloat16,
-        load_in_4bit=True,
-    )
+    hf_offline = os.getenv("HF_HUB_OFFLINE", "false").lower() == "true"
+    print("INFO: HF_HUB_OFFLINE:", hf_offline)
+    try:
+        # Try loading the model
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name=config.MODEL_NAME,
+            max_seq_length=config.MAX_SEQ_LENGTH,
+            dtype=torch.bfloat16,
+            load_in_4bit=True,
+            local_files_only=hf_offline
+        )
+    except Exception as e:
+        print("Error loading model with local_files_only=", hf_offline, "Exception:", e)
+        # If not in offline mode and we encounter a network/DNS related error, retry with offline mode
+        if not hf_offline and "huggingface.co" in str(e):
+            print("Network error detected, retrying in offline mode.")
+            hf_offline = True
+            try:
+                model, tokenizer = FastLanguageModel.from_pretrained(
+                    model_name=config.MODEL_NAME,
+                    max_seq_length=config.MAX_SEQ_LENGTH,
+                    dtype=torch.bfloat16,
+                    load_in_4bit=True,
+                    local_files_only=True
+                )
+            except Exception as e2:
+                print("Failed again with offline mode. Exception:", e2)
+                raise e2
+        else:
+            raise e
     
     # Move model to device
     model = model.to(config.DEVICE)
